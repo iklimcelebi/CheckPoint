@@ -1,0 +1,185 @@
+@CheckPoint.Api_HostAddress = http://localhost:5118
+@token = paste-jwt-token-here
+
+### List universities
+GET {{CheckPoint.Api_HostAddress}}/api/Universities
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get an existing university
+GET {{CheckPoint.Api_HostAddress}}/api/Universities/1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get a university that does not exist (404)
+GET {{CheckPoint.Api_HostAddress}}/api/Universities/999999
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Create a university (201)
+POST {{CheckPoint.Api_HostAddress}}/api/Universities
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Pamukkale Üniversitesi",
+  "city": "Denizli"
+}
+
+### Create a duplicate university (409)
+POST {{CheckPoint.Api_HostAddress}}/api/Universities
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Pamukkale Üniversitesi",
+  "city": "Denizli"
+}
+
+### Create with invalid data (400)
+POST {{CheckPoint.Api_HostAddress}}/api/Universities
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "city": "Denizli"
+}
+
+### Update a university (204)
+PUT {{CheckPoint.Api_HostAddress}}/api/Universities/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Pamukkale Üniversitesi",
+  "city": "Denizli"
+}
+
+### Delete a university (204)
+DELETE {{CheckPoint.Api_HostAddress}}/api/Universities/1
+Authorization: Bearer {{token}}
+
+### List courses
+GET {{CheckPoint.Api_HostAddress}}/api/courses
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### List courses for one university
+GET {{CheckPoint.Api_HostAddress}}/api/courses?universityId=1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get a course by ID (404 if missing)
+GET {{CheckPoint.Api_HostAddress}}/api/courses/1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Create a course (201)
+POST {{CheckPoint.Api_HostAddress}}/api/courses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Veri Yapıları",
+  "code": " blg202 ",
+  "universityId": 1
+}
+
+### Create a course with a duplicate code (409)
+POST {{CheckPoint.Api_HostAddress}}/api/courses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Veri Yapıları",
+  "code": "BLG202",
+  "universityId": 1
+}
+
+### Create a course with a missing university (400)
+POST {{CheckPoint.Api_HostAddress}}/api/courses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Veri Yapıları",
+  "code": "BLG202",
+  "universityId": 999999
+}
+
+### Update a course (204; university cannot be changed)
+PUT {{CheckPoint.Api_HostAddress}}/api/courses/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Güncellenmiş Veri Yapıları",
+  "code": " BLG203 "
+}
+
+### Upload an educational resource (replace the sample text with desired metadata)
+POST {{CheckPoint.Api_HostAddress}}/api/resources
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=CheckPointBoundary
+
+--CheckPointBoundary
+Content-Disposition: form-data; name="Title"
+
+Veri Yapıları ders notları
+--CheckPointBoundary
+Content-Disposition: form-data; name="Description"
+
+Örnek metin dosyası
+--CheckPointBoundary
+Content-Disposition: form-data; name="UniversityId"
+
+1
+--CheckPointBoundary
+Content-Disposition: form-data; name="CourseId"
+
+1
+--CheckPointBoundary
+Content-Disposition: form-data; name="Type"
+
+LectureNote
+--CheckPointBoundary
+Content-Disposition: form-data; name="File"; filename="sample.txt"
+Content-Type: text/plain
+
+Bu dosya eğitim kaynağı yükleme endpoint'ini test etmek için kullanılır.
+--CheckPointBoundary--
+
+### List resources with filters and pagination
+GET {{CheckPoint.Api_HostAddress}}/api/resources?universityId=1&courseId=1&type=LectureNote&q=not&page=1&pageSize=20
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get resource details (404 if missing)
+GET {{CheckPoint.Api_HostAddress}}/api/resources/1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Download a resource file (404 if the file is missing)
+GET {{CheckPoint.Api_HostAddress}}/api/resources/1/download
+Authorization: Bearer {{token}}
+
+### Update resource metadata (owner or Admin)
+PUT {{CheckPoint.Api_HostAddress}}/api/resources/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Güncellenmiş ders notları",
+  "description": "Güncellenmiş açıklama",
+  "type": "LectureNote"
+}
+
+### Delete resource (owner or Admin)
+DELETE {{CheckPoint.Api_HostAddress}}/api/resources/1
+Authorization: Bearer {{token}}
+
+### List resources uploaded by the current user
+GET {{CheckPoint.Api_HostAddress}}/api/users/me/resources?page=1&pageSize=20
+Authorization: Bearer {{token}}
+Accept: application/json
