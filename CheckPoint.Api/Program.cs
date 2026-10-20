@@ -1,9 +1,12 @@
 using CheckPoint.Api.Data;
+using CheckPoint.Api.Middleware;
 using CheckPoint.Api.OpenApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Mvc;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using CheckPoint.Api.Services;
 
@@ -33,6 +36,8 @@ if (maxFileSizeMb <= 0)
 
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
@@ -47,6 +52,41 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/problem+json";
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "Kimlik doğrulaması gerekli",
+                    Detail = "Bu isteğe erişmek için giriş yapmalısınız.",
+                    Instance = context.Request.Path
+                };
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(problem),
+                    context.HttpContext.RequestAborted);
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/problem+json";
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status403Forbidden,
+                    Title = "Erişim reddedildi",
+                    Detail = "Bu işlem için yetkiniz yok.",
+                    Instance = context.Request.Path
+                };
+                await context.Response.WriteAsync(
+                    JsonSerializer.Serialize(problem),
+                    context.HttpContext.RequestAborted);
+            }
+        };
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -64,6 +104,7 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
