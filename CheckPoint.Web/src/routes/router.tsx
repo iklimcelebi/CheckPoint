@@ -3,6 +3,7 @@ import { AppLayout } from '../components/AppLayout'
 import { AuthLayout } from '../components/AuthLayout'
 import { PlaceholderPage } from '../components/PlaceholderPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { ProfilePage } from '../features/auth/ProfilePage'
 import { RegisterPage } from '../features/auth/RegisterPage'
 import { GuestOnly, RequireAdmin, RequireAuth } from './guards'
 import { NotFoundPage } from './NotFoundPage'
@@ -73,10 +74,7 @@ export const router = createBrowserRouter([
                   <PlaceholderPage title="Dersler" description="Üniversitelere göre dersler." />
                 ),
               },
-              {
-                path: '/profil',
-                element: <PlaceholderPage title="Profil" description="Hesap bilgileriniz." />,
-              },
+              { path: '/profil', element: <ProfilePage /> },
               {
                 element: <RequireAdmin />,
                 children: [
