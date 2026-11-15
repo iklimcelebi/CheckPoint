@@ -12,18 +12,36 @@ internal sealed class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        logger.LogError(exception, "An unexpected error occurred while processing the request.");
-
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        httpContext.Response.ContentType = "application/problem+json";
-
-        var problem = new ProblemDetails
+        var problem = exception switch
         {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Sunucu hatası",
-            Detail = "İstek işlenirken beklenmeyen bir hata oluştu.",
-            Instance = httpContext.Request.Path
+            BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } => new ProblemDetails
+            {
+                Status = StatusCodes.Status413PayloadTooLarge,
+                Title = "İstek çok büyük",
+                Detail = "İstek gövdesi izin verilen boyutu aşıyor."
+            },
+            BadHttpRequestException badRequest => new ProblemDetails
+            {
+                Status = badRequest.StatusCode,
+                Title = "Geçersiz istek",
+                Detail = "İstek okunamadı."
+            },
+            _ => new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Sunucu hatası",
+                Detail = "İstek işlenirken beklenmeyen bir hata oluştu."
+            }
         };
+        problem.Instance = httpContext.Request.Path;
+
+        if (problem.Status == StatusCodes.Status500InternalServerError)
+            logger.LogError(exception, "An unexpected error occurred while processing the request.");
+        else
+            logger.LogWarning("Rejected a malformed or oversized request with status {StatusCode}.", problem.Status);
+
+        httpContext.Response.StatusCode = problem.Status!.Value;
+        httpContext.Response.ContentType = "application/problem+json";
 
         await JsonSerializer.SerializeAsync(
             httpContext.Response.Body,

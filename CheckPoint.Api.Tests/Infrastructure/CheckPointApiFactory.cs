@@ -2,7 +2,9 @@ using System.Security.Cryptography;
 using CheckPoint.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CheckPoint.Api.Tests.Infrastructure;
 
@@ -28,6 +30,13 @@ public sealed class CheckPointApiFactory : WebApplicationFactory<Program>
     public string AdminEmail { get; }
     public string AdminPassword { get; }
 
+    public Dictionary<string, string?> Settings { get; } = new()
+    {
+        ["RateLimiting:Auth:PermitLimit"] = "100000"
+    };
+
+    public Action<IServiceCollection>? ConfigureServices { get; set; }
+
     public async Task CreateDatabaseAsync()
     {
         await using var db = CreateDbContext();
@@ -45,18 +54,28 @@ public sealed class CheckPointApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("FileStorage:RootPath", UploadRoot);
         builder.UseSetting("SeedAdmin:Email", AdminEmail);
         builder.UseSetting("SeedAdmin:Password", AdminPassword);
+        foreach (var (key, value) in Settings)
+            builder.UseSetting(key, value);
+
+        if (ConfigureServices is not null)
+            builder.ConfigureTestServices(ConfigureServices);
     }
 
     public override async ValueTask DisposeAsync()
     {
-        await base.DisposeAsync();
-
-        await using (var db = CreateDbContext())
+        try
         {
-            await db.Database.EnsureDeletedAsync();
+            await base.DisposeAsync();
         }
+        finally
+        {
+            await using (var db = CreateDbContext())
+            {
+                await db.Database.EnsureDeletedAsync();
+            }
 
-        if (Directory.Exists(UploadRoot))
-            Directory.Delete(UploadRoot, recursive: true);
+            if (Directory.Exists(UploadRoot))
+                Directory.Delete(UploadRoot, recursive: true);
+        }
     }
 }

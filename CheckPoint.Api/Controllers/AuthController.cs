@@ -3,9 +3,11 @@ using System.Security.Claims;
 using System.Text;
 using CheckPoint.Api.Data;
 using CheckPoint.Api.Dtos;
+using CheckPoint.Api.Extensions;
 using CheckPoint.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -14,6 +16,8 @@ namespace CheckPoint.Api.Controllers;
 [ApiController]
 [Route("api/auth")]
 [AllowAnonymous]
+[EnableRateLimiting(SecurityServiceExtensions.AuthRateLimitPolicy)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;

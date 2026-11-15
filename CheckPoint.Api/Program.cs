@@ -36,6 +36,13 @@ if (maxFileSizeMb <= 0)
     throw new InvalidOperationException("FileStorage:MaxFileSizeMB pozitif bir sayı olmalıdır.");
 }
 
+var maxRequestBodySize = builder.Configuration.GetValue<long?>("Kestrel:Limits:MaxRequestBodySize") ?? 1024 * 1024;
+if (maxRequestBodySize <= 0)
+{
+    throw new InvalidOperationException("Kestrel:Limits:MaxRequestBodySize pozitif bir sayı olmalıdır.");
+}
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxRequestBodySize);
+
 builder.Services
     .AddControllers(options =>
     {
@@ -61,6 +68,9 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddSingleton<IFileScanner, NoOpFileScanner>();
+builder.Services.AddAuthRateLimiting(builder.Configuration);
+builder.Services.AddConfiguredCors(builder.Configuration);
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -138,8 +148,12 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+if (app.Environment.IsProduction())
+    app.UseHsts();
 
 if (app.Environment.IsDevelopment())
 {
@@ -151,6 +165,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

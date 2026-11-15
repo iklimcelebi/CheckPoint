@@ -6,6 +6,7 @@ using System.Text;
 using CheckPoint.Api.Data;
 using CheckPoint.Api.Dtos;
 using CheckPoint.Api.Extensions;
+using CheckPoint.Api.Filters;
 using CheckPoint.Api.Models;
 using CheckPoint.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -39,15 +40,18 @@ public class ResourcesController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly IFileStorageService _fileStorage;
+    private readonly IFileScanner _fileScanner;
     private readonly long _maxFileSize;
 
     public ResourcesController(
         AppDbContext db,
         IFileStorageService fileStorage,
+        IFileScanner fileScanner,
         IConfiguration configuration)
     {
         _db = db;
         _fileStorage = fileStorage;
+        _fileScanner = fileScanner;
         _maxFileSize = configuration.GetValue<int>("FileStorage:MaxFileSizeMB") * BytesPerMegabyte;
     }
 
@@ -108,6 +112,7 @@ public class ResourcesController : ControllerBase
 
     [HttpPost]
     [Consumes("multipart/form-data")]
+    [UploadSizeLimit]
     [EndpointSummary("Kaynak yükler")]
     [EndpointDescription(
         "multipart/form-data ile Title, Description (isteğe bağlı), UniversityId, CourseId, Type ve File alanları " +
@@ -117,6 +122,7 @@ public class ResourcesController : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status413PayloadTooLarge)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status415UnsupportedMediaType)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<ResourceResponse>> Create(
         [FromForm] CreateResourceRequest request,
         CancellationToken cancellationToken)
@@ -128,7 +134,7 @@ public class ResourcesController : ControllerBase
             return Problem(detail: "Boş dosya yüklenemez.", statusCode: StatusCodes.Status400BadRequest);
 
         if (request.File.Length > _maxFileSize)
-            return Problem(detail: "Dosya izin verilen boyut sınırını aşıyor.", statusCode: StatusCodes.Status413PayloadTooLarge);
+            return Problem(detail: UploadSizeLimitAttribute.TooLargeMessage, statusCode: StatusCodes.Status413PayloadTooLarge);
 
         if (!Enum.IsDefined(request.Type))
             return Problem(detail: "Kaynak türü geçersiz.", statusCode: StatusCodes.Status400BadRequest);
@@ -165,6 +171,22 @@ public class ResourcesController : ControllerBase
             return Problem(
                 detail: "Seçilen ders belirtilen üniversiteye ait değil veya bulunamadı.",
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        FileScanStatus scanStatus;
+        await using (var stream = request.File.OpenReadStream())
+        {
+            scanStatus = await _fileScanner.ScanAsync(stream, originalFileName, cancellationToken);
+        }
+
+        if (scanStatus == FileScanStatus.Infected)
+            return Problem(detail: "Dosya güvenlik taramasından geçemedi.", statusCode: StatusCodes.Status400BadRequest);
+
+        if (scanStatus == FileScanStatus.Unavailable)
+        {
+            return Problem(
+                detail: "Dosya güvenlik taraması şu anda yapılamıyor. Lütfen daha sonra tekrar deneyin.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         var storedFileName = string.Empty;
@@ -252,7 +274,6 @@ public class ResourcesController : ControllerBase
             return Problem(detail: "Kaynak dosyası bulunamadı.", statusCode: StatusCodes.Status404NotFound);
         }
 
-        Response.Headers["X-Content-Type-Options"] = "nosniff";
         return File(fileStream, resource.ContentType, resource.OriginalFileName);
     }
 
