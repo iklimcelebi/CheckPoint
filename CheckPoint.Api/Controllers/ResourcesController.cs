@@ -41,17 +41,20 @@ public class ResourcesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IFileStorageService _fileStorage;
     private readonly IFileScanner _fileScanner;
+    private readonly ILogger<ResourcesController> _logger;
     private readonly long _maxFileSize;
 
     public ResourcesController(
         AppDbContext db,
         IFileStorageService fileStorage,
         IFileScanner fileScanner,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<ResourcesController> logger)
     {
         _db = db;
         _fileStorage = fileStorage;
         _fileScanner = fileScanner;
+        _logger = logger;
         _maxFileSize = configuration.GetValue<int>("FileStorage:MaxFileSizeMB") * BytesPerMegabyte;
     }
 
@@ -217,7 +220,7 @@ public class ResourcesController : ControllerBase
         }
         catch
         {
-            await _fileStorage.DeleteAsync(storedFileName, CancellationToken.None);
+            await RemoveUnreferencedFileAsync(storedFileName);
             throw;
         }
 
@@ -252,6 +255,7 @@ public class ResourcesController : ControllerBase
         "Dosya adı ASCII yedek ad (filename) ve UTF-8 (filename*) olarak kodlanır.")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK, "application/octet-stream")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Download(int id, CancellationToken cancellationToken)
     {
         var resource = await _db.EducationalResources
@@ -260,19 +264,9 @@ public class ResourcesController : ControllerBase
         if (resource is null)
             return Problem(detail: "Kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound);
 
-        FileStream fileStream;
-        try
-        {
-            fileStream = _fileStorage.OpenRead(resource.StoredFileName);
-        }
-        catch (FileNotFoundException)
-        {
+        var fileStream = await _fileStorage.OpenReadAsync(resource.StoredFileName, cancellationToken);
+        if (fileStream is null)
             return Problem(detail: "Kaynak dosyası bulunamadı.", statusCode: StatusCodes.Status404NotFound);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return Problem(detail: "Kaynak dosyası bulunamadı.", statusCode: StatusCodes.Status404NotFound);
-        }
 
         return File(fileStream, resource.ContentType, resource.OriginalFileName);
     }
@@ -310,9 +304,13 @@ public class ResourcesController : ControllerBase
 
     [HttpDelete("{id:int}")]
     [EndpointSummary("Kaynağı ve dosyasını siler (yükleyen veya Admin)")]
+    [EndpointDescription(
+        "Dosya önce silinmek üzere ayrılır, ardından kayıt silinir. Kayıt silinemezse dosya geri alınır; " +
+        "depolama erişilemezse hiçbir şey silinmez ve 503 döner.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var resource = await _db.EducationalResources
@@ -323,11 +321,59 @@ public class ResourcesController : ControllerBase
         if (!CanManage(resource))
             return Problem(detail: "Bu kaynağı silme yetkiniz yok.", statusCode: StatusCodes.Status403Forbidden);
 
-        _db.EducationalResources.Remove(resource);
-        await _db.SaveChangesAsync(cancellationToken);
-        await _fileStorage.DeleteAsync(resource.StoredFileName, cancellationToken);
+        var stagedFile = await _fileStorage.StageDeleteAsync(resource.StoredFileName, cancellationToken);
+        try
+        {
+            _db.EducationalResources.Remove(resource);
+            await _db.SaveChangesAsync(CancellationToken.None);
+        }
+        catch
+        {
+            try
+            {
+                await stagedFile.RestoreAsync(CancellationToken.None);
+            }
+            catch (Exception restoreException)
+            {
+                _logger.LogError(
+                    restoreException,
+                    "Could not restore stored file {StoredFileName} after deleting resource {ResourceId} failed.",
+                    resource.StoredFileName,
+                    resource.Id);
+            }
+
+            throw;
+        }
+
+        try
+        {
+            await stagedFile.CompleteAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Resource {ResourceId} was deleted but its stored file {StoredFileName} could not be removed.",
+                resource.Id,
+                resource.StoredFileName);
+        }
 
         return NoContent();
+    }
+
+    private async Task RemoveUnreferencedFileAsync(string storedFileName)
+    {
+        try
+        {
+            await _fileStorage.DeleteAsync(storedFileName, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Stored file {StoredFileName} could not be removed after saving its resource record failed.",
+                storedFileName);
+        }
     }
 
     private bool CanManage(EducationalResource resource) =>

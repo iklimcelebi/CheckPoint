@@ -74,6 +74,7 @@ Settings are layered: `appsettings.json` (shared defaults) → `appsettings.{Env
 | `Jwt:ExpiryMinutes` | No | `60` | Token lifetime in minutes; required, positive |
 | `SeedAdmin:Email` | Personal data | User secrets (Development); **environment variable only** in Production | Optional initial admin email |
 | `SeedAdmin:Password` | **Yes** | User secrets (Development); **environment variable only** in Production | Optional initial admin password |
+| `FileStorage:Provider` | No | `Local` | Storage implementation; only `Local` is supported today |
 | `FileStorage:RootPath` | No | `uploads` | Local storage root, relative to the API project unless absolute; required |
 | `FileStorage:MaxFileSizeMB` | No | `20` | Maximum upload size in MiB; required, positive |
 | `Kestrel:Limits:MaxRequestBodySize` | No | `1048576` (1 MiB) | Body size limit for every endpoint except uploads; uploads allow `MaxFileSizeMB` + 1 MiB |
@@ -119,7 +120,40 @@ A token is also rejected if its user no longer exists or the user's role changed
 - Downloads are served with the content type validated and stored at upload time, never the type the client claims later, and with `Content-Disposition: attachment` containing an ASCII fallback name plus an RFC 5987 UTF-8 `filename*`.
 - `IFileScanner` (`Services/IFileScanner.cs`) is called for every upload before the file is stored. The default `NoOpFileScanner` accepts every file. To add malware scanning (for example ClamAV or a cloud scanning service), implement the interface and register it in `Program.cs`. `Infected` returns `400`; `Unavailable` returns `503` and nothing is stored.
 
-## Environments
+## File storage
+
+`FileStorage:Provider` selects the storage implementation. Only `Local` is available today; any other value stops the application at startup. Cloud storage will be added behind the same `IFileStorageService` interface.
+
+### Error handling
+
+- Disk full while saving: `503` with "Depolama alanı dolu…". The partly written file is removed and no record is created.
+- Storage root missing, not writable, or otherwise failing: `503` with "Dosya depolama şu anda kullanılamıyor…". This applies to upload, download, and delete.
+- A record whose file is missing on disk returns `404` on download.
+
+### Keeping the database and files consistent
+
+- **Upload:** the file is written first, then the record is inserted. If the insert fails, the file is deleted.
+- **Delete:** the file is first renamed to `<name>.deleted`, then the record is deleted.
+  - If deleting the record fails, the file is renamed back, so both the record and the file stay as they were.
+  - If renaming fails because storage is unavailable, nothing is deleted and the API returns `503`.
+  - After the record is deleted, the `.deleted` file is removed.
+
+Residual cases, each requiring two independent failures in a row, are logged with the stored file name:
+
+| Case | Leftover | Log level | Fix |
+|---|---|---|---|
+| The insert fails after an upload, and deleting the new file also fails | An unreferenced file | `Error` | Safe to delete |
+| The record is deleted, but removing `<name>.deleted` fails | A `.deleted` file | `Warning` | Safe to delete |
+| Deleting the record fails, and renaming the file back also fails | A record whose file ends in `.deleted` | `Error` | Rename the file back by removing the `.deleted` suffix |
+
+### Backups (local storage)
+
+Back up the database and the `FileStorage:RootPath` folder together:
+
+1. Back up the database first (for example `BACKUP DATABASE`, or your host's automated backups).
+2. Then copy the storage folder, for example `robocopy <RootPath> <backup>\uploads /E` on Windows or `rsync -a <RootPath>/ <backup>/uploads/` on Linux.
+
+Stored files are never modified after upload; they are only added or removed. Taking the database backup first means every record in the backup has its file in the folder copy, unless the file was deleted between the two steps. Files added after the database backup are extra and harmless. Restore both from the same backup set. Skip `*.deleted` files when copying.
 
 | Environment | Swagger UI / OpenAPI | Auto-migrate | Seed admin source | Logs | HSTS |
 |---|---|---|---|---|---|

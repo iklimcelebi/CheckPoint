@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CheckPoint.Api.Services;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,6 +15,12 @@ internal sealed class GlobalExceptionHandler(
     {
         var problem = exception switch
         {
+            StorageUnavailableException storage => new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Hizmet kullanılamıyor",
+                Detail = storage.Message
+            },
             BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } => new ProblemDetails
             {
                 Status = StatusCodes.Status413PayloadTooLarge,
@@ -37,6 +44,8 @@ internal sealed class GlobalExceptionHandler(
 
         if (problem.Status == StatusCodes.Status500InternalServerError)
             logger.LogError(exception, "An unexpected error occurred while processing the request.");
+        else if (exception is StorageUnavailableException)
+            logger.LogError(exception, "File storage is unavailable.");
         else
             logger.LogWarning("Rejected a malformed or oversized request with status {StatusCode}.", problem.Status);
 
