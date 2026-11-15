@@ -1,46 +1,46 @@
+using System.Text.Json.Nodes;
 using CheckPoint.Api.Dtos;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace CheckPoint.Api.OpenApi;
 
 public sealed class ExampleSchemaTransformer : IOpenApiSchemaTransformer
 {
-    private static readonly Dictionary<Type, Func<OpenApiObject>> Examples = new()
+    private static readonly Dictionary<Type, Func<JsonNode>> Examples = new()
     {
-        [typeof(RegisterRequest)] = () => new OpenApiObject
+        [typeof(RegisterRequest)] = () => new JsonObject
         {
-            ["username"] = new OpenApiString("ayse"),
-            ["email"] = new OpenApiString("ayse@example.com"),
-            ["password"] = new OpenApiString("<8-64 karakter, en az bir harf ve bir rakam>")
+            ["username"] = "ayse",
+            ["email"] = "ayse@example.com",
+            ["password"] = "<8-64 karakter, en az bir harf ve bir rakam>"
         },
-        [typeof(LoginRequest)] = () => new OpenApiObject
+        [typeof(LoginRequest)] = () => new JsonObject
         {
-            ["email"] = new OpenApiString("ayse@example.com"),
-            ["password"] = new OpenApiString("<parola>")
+            ["email"] = "ayse@example.com",
+            ["password"] = "<parola>"
         },
-        [typeof(UniversityRequest)] = () => new OpenApiObject
+        [typeof(UniversityRequest)] = () => new JsonObject
         {
-            ["name"] = new OpenApiString("Pamukkale Üniversitesi"),
-            ["city"] = new OpenApiString("Denizli")
+            ["name"] = "Pamukkale Üniversitesi",
+            ["city"] = "Denizli"
         },
-        [typeof(CourseRequest)] = () => new OpenApiObject
+        [typeof(CourseRequest)] = () => new JsonObject
         {
-            ["name"] = new OpenApiString("Veri Yapıları"),
-            ["code"] = new OpenApiString("BLG202"),
-            ["universityId"] = new OpenApiInteger(1)
+            ["name"] = "Veri Yapıları",
+            ["code"] = "BLG202",
+            ["universityId"] = 1
         },
-        [typeof(CourseUpdateRequest)] = () => new OpenApiObject
+        [typeof(CourseUpdateRequest)] = () => new JsonObject
         {
-            ["name"] = new OpenApiString("Veri Yapıları ve Algoritmalar"),
-            ["code"] = new OpenApiString("BLG202")
+            ["name"] = "Veri Yapıları ve Algoritmalar",
+            ["code"] = "BLG202"
         },
-        [typeof(UpdateResourceRequest)] = () => new OpenApiObject
+        [typeof(UpdateResourceRequest)] = () => new JsonObject
         {
-            ["title"] = new OpenApiString("Vize öncesi ders notları"),
-            ["description"] = new OpenApiString("1-7. hafta konuları"),
-            ["type"] = new OpenApiString("LectureNote")
+            ["title"] = "Vize öncesi ders notları",
+            ["description"] = "1-7. hafta konuları",
+            ["type"] = "LectureNote"
         }
     };
 
@@ -50,7 +50,7 @@ public sealed class ExampleSchemaTransformer : IOpenApiSchemaTransformer
         CancellationToken cancellationToken)
     {
         if (Examples.TryGetValue(context.JsonTypeInfo.Type, out var example))
-            schema.Example = example();
+            schema.Examples = [example()];
 
         return Task.CompletedTask;
     }

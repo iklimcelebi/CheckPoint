@@ -4,9 +4,9 @@ CheckPoint is an API for students to share lecture notes, presentations, study q
 
 ## Requirements
 
-- .NET 9 SDK
+- .NET 10 SDK (10.0.404 or a later 10.0 feature band; pinned in `global.json`)
 - SQL Server LocalDB
-- The `dotnet-ef` global tool
+- The `dotnet-ef` global tool, version 10: `dotnet tool update --global dotnet-ef --version 10.0.*`
 
 ## Setup
 

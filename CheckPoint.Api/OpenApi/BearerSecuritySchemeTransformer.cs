@@ -1,18 +1,20 @@
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace CheckPoint.Api.OpenApi;
 
 public sealed class BearerSecuritySchemeTransformer : IOpenApiDocumentTransformer
 {
+    private const string SchemeName = "Bearer";
+
     public Task TransformAsync(
         OpenApiDocument document,
         OpenApiDocumentTransformerContext context,
         CancellationToken cancellationToken)
     {
         document.Components ??= new OpenApiComponents();
-        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes[SchemeName] = new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.Http,
             Scheme = "bearer",
@@ -20,60 +22,50 @@ public sealed class BearerSecuritySchemeTransformer : IOpenApiDocumentTransforme
             Description = "JWT Bearer token"
         };
 
-        var bearerReference = new OpenApiSecurityScheme
+        foreach (var (path, pathItem) in document.Paths)
         {
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        };
-
-        foreach (var path in document.Paths)
-        {
-            if (string.Equals(path.Key, "/api/resources", StringComparison.OrdinalIgnoreCase) &&
-                path.Value.Operations.TryGetValue(OperationType.Post, out var uploadOperation) &&
-                uploadOperation.RequestBody?.Content.TryGetValue("multipart/form-data", out var formContent) == true)
-            {
-                var formSchema = formContent.Schema;
-                if (formSchema.Properties.TryGetValue("File", out _))
-                {
-                    formSchema.Properties["File"] = new OpenApiSchema
-                    {
-                        Type = "string",
-                        Format = "binary"
-                    };
-                }
-
-                if (formSchema.Properties.TryGetValue("Type", out var resourceTypeSchema))
-                {
-                    resourceTypeSchema.Type = "string";
-                    resourceTypeSchema.Format = null;
-                    resourceTypeSchema.Enum =
-                    [
-                        new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.LectureNote)),
-                        new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.Presentation)),
-                        new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.StudyQuestion)),
-                        new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.PastExamQuestion))
-                    ];
-                    resourceTypeSchema.MaxLength = null;
-                    resourceTypeSchema.MinLength = null;
-                }
-            }
-
-            if (path.Key.StartsWith("/api/auth/", StringComparison.OrdinalIgnoreCase))
+            if (pathItem.Operations is null)
                 continue;
 
-            foreach (var operation in path.Value.Operations.Values)
+            if (string.Equals(path, "/api/resources", StringComparison.OrdinalIgnoreCase) &&
+                pathItem.Operations.TryGetValue(HttpMethod.Post, out var uploadOperation))
+            {
+                FixUploadForm(uploadOperation);
+            }
+
+            if (path.StartsWith("/api/auth/", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/health", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var operation in pathItem.Operations.Values)
             {
                 operation.Security ??= [];
                 operation.Security.Add(new OpenApiSecurityRequirement
                 {
-                    [bearerReference] = []
+                    [new OpenApiSecuritySchemeReference(SchemeName, document)] = []
                 });
             }
         }
 
         return Task.CompletedTask;
+    }
+
+    private static void FixUploadForm(OpenApiOperation operation)
+    {
+        if (operation.RequestBody?.Content is null ||
+            !operation.RequestBody.Content.TryGetValue("multipart/form-data", out var formContent) ||
+            formContent.Schema is not OpenApiSchema formSchema ||
+            formSchema.Properties is null)
+        {
+            return;
+        }
+
+        if (formSchema.Properties.ContainsKey("File"))
+            formSchema.Properties["File"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" };
+
+        if (formSchema.Properties.TryGetValue("Type", out var typeSchema) && typeSchema is OpenApiSchema resourceTypeSchema)
+            ResourceTypeSchemaTransformer.ApplyResourceTypeEnum(resourceTypeSchema);
     }
 }

@@ -1,6 +1,7 @@
+using System.Text.Json.Nodes;
+using CheckPoint.Api.Models;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace CheckPoint.Api.OpenApi;
 
@@ -11,19 +12,20 @@ public sealed class ResourceTypeSchemaTransformer : IOpenApiSchemaTransformer
         OpenApiSchemaTransformerContext context,
         CancellationToken cancellationToken)
     {
-        if (context.JsonTypeInfo.Type == typeof(CheckPoint.Api.Models.ResourceType))
-        {
-            schema.Type = "string";
-            schema.Format = null;
-            schema.Enum =
-            [
-                new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.LectureNote)),
-                new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.Presentation)),
-                new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.StudyQuestion)),
-                new OpenApiString(nameof(CheckPoint.Api.Models.ResourceType.PastExamQuestion))
-            ];
-        }
+        var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+        if (type == typeof(ResourceType))
+            ApplyResourceTypeEnum(schema);
 
         return Task.CompletedTask;
+    }
+
+    internal static void ApplyResourceTypeEnum(OpenApiSchema schema)
+    {
+        schema.Type = JsonSchemaType.String;
+        schema.Format = null;
+        schema.MinLength = null;
+        schema.MaxLength = null;
+        schema.Pattern = null;
+        schema.Enum = Enum.GetNames<ResourceType>().Select(name => (JsonNode)JsonValue.Create(name)).ToList();
     }
 }
