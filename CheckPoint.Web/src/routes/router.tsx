@@ -2,9 +2,6 @@ import { createBrowserRouter, Navigate } from 'react-router'
 import { AppLayout } from '../components/AppLayout'
 import { AuthLayout } from '../components/AuthLayout'
 import { PlaceholderPage } from '../components/PlaceholderPage'
-import { LoginPage } from '../features/auth/LoginPage'
-import { ProfilePage } from '../features/auth/ProfilePage'
-import { RegisterPage } from '../features/auth/RegisterPage'
 import { GuestOnly, RequireAdmin, RequireAuth } from './guards'
 import { NotFoundPage } from './NotFoundPage'
 import { RouteErrorPage } from './RouteErrorPage'
@@ -19,8 +16,18 @@ export const router = createBrowserRouter([
           {
             element: <AuthLayout />,
             children: [
-              { path: '/giris', element: <LoginPage /> },
-              { path: '/kayit', element: <RegisterPage /> },
+              {
+                path: '/giris',
+                lazy: async () => ({
+                  Component: (await import('../features/auth/LoginPage')).LoginPage,
+                }),
+              },
+              {
+                path: '/kayit',
+                lazy: async () => ({
+                  Component: (await import('../features/auth/RegisterPage')).RegisterPage,
+                }),
+              },
             ],
           },
         ],
@@ -34,17 +41,25 @@ export const router = createBrowserRouter([
               { path: '/', element: <Navigate to="/kaynaklar" replace /> },
               {
                 path: '/kaynaklar',
-                element: (
-                  <PlaceholderPage
-                    title="Kaynaklar"
-                    description="Üniversite, ders ve türe göre paylaşılan kaynaklar."
-                  />
-                ),
+                lazy: async () => ({
+                  Component: (await import('../features/resources/ResourceListPage'))
+                    .ResourceListPage,
+                }),
               },
               {
                 path: '/kaynaklar/:id',
+                lazy: async () => ({
+                  Component: (await import('../features/resources/ResourceDetailPage'))
+                    .ResourceDetailPage,
+                }),
+              },
+              {
+                path: '/kaynaklar/:id/duzenle',
                 element: (
-                  <PlaceholderPage title="Kaynak ayrıntısı" description="Kaynağın tüm bilgileri." />
+                  <PlaceholderPage
+                    title="Kaynağı düzenle"
+                    description="Başlık, açıklama ve türü güncelleyin."
+                  />
                 ),
               },
               {
@@ -55,12 +70,10 @@ export const router = createBrowserRouter([
               },
               {
                 path: '/benim-kaynaklarim',
-                element: (
-                  <PlaceholderPage
-                    title="Benim Kaynaklarım"
-                    description="Yüklediğiniz kaynaklar."
-                  />
-                ),
+                lazy: async () => ({
+                  Component: (await import('../features/resources/MyResourcesPage'))
+                    .MyResourcesPage,
+                }),
               },
               {
                 path: '/universiteler',
@@ -74,7 +87,12 @@ export const router = createBrowserRouter([
                   <PlaceholderPage title="Dersler" description="Üniversitelere göre dersler." />
                 ),
               },
-              { path: '/profil', element: <ProfilePage /> },
+              {
+                path: '/profil',
+                lazy: async () => ({
+                  Component: (await import('../features/auth/ProfilePage')).ProfilePage,
+                }),
+              },
               {
                 element: <RequireAdmin />,
                 children: [
