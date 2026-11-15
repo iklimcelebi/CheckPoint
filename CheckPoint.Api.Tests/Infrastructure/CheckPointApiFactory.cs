@@ -3,6 +3,7 @@ using CheckPoint.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,6 +38,18 @@ public sealed class CheckPointApiFactory : WebApplicationFactory<Program>
 
     public Action<IServiceCollection>? ConfigureServices { get; set; }
 
+    public string EnvironmentName { get; set; } = "Testing";
+
+    public async Task<bool> DatabaseExistsAsync()
+    {
+        await using var connection = new SqlConnection(
+            new SqlConnectionStringBuilder(ConnectionString) { InitialCatalog = "master" }.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("SELECT COUNT(*) FROM sys.databases WHERE name = @name", connection);
+        command.Parameters.AddWithValue("@name", DatabaseName);
+        return (int)(await command.ExecuteScalarAsync())! > 0;
+    }
+
     public async Task CreateDatabaseAsync()
     {
         await using var db = CreateDbContext();
@@ -48,7 +61,7 @@ public sealed class CheckPointApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(EnvironmentName);
         builder.UseSetting("ConnectionStrings:DefaultConnection", ConnectionString);
         builder.UseSetting("Jwt:Key", JwtKey);
         builder.UseSetting("FileStorage:RootPath", UploadRoot);

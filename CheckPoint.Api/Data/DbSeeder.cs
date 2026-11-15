@@ -1,29 +1,36 @@
 using CheckPoint.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration.EnvironmentVariables;
 
 namespace CheckPoint.Api.Data;
 
 public static class DbSeeder
 {
+    private const string EmailKey = "SeedAdmin:Email";
+    private const string PasswordKey = "SeedAdmin:Password";
+
     public static async Task SeedAdminAsync(
         AppDbContext db,
         IConfiguration configuration,
+        IHostEnvironment environment,
+        ILogger logger,
         CancellationToken cancellationToken = default)
     {
+        var (email, password) = ReadSeedSettings(configuration, environment, logger);
+        if (email is null || password is null)
+            return;
+
         if (await db.Users.AnyAsync(user => user.Role == "Admin", cancellationToken))
             return;
 
-        var email = configuration["SeedAdmin:Email"]?.Trim().ToLowerInvariant();
-        var password = configuration["SeedAdmin:Password"];
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
-            return;
-
         if (password.Length < 8)
-            throw new InvalidOperationException("SeedAdmin:Password must contain at least 8 characters.");
+            throw new InvalidOperationException("SeedAdmin:Password en az 8 karakter olmalıdır.");
 
         if (await db.Users.AnyAsync(user => user.Email == email, cancellationToken))
+        {
             throw new InvalidOperationException(
-                "The configured SeedAdmin:Email is already registered to a non-admin user.");
+                "SeedAdmin:Email ile kayıtlı, Admin olmayan bir kullanıcı zaten var.");
+        }
 
         var username = await GetAvailableUsernameAsync(db, email, cancellationToken);
         db.Users.Add(new User
@@ -36,6 +43,52 @@ public static class DbSeeder
         });
 
         await db.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Seed admin account created.");
+    }
+
+    private static (string? Email, string? Password) ReadSeedSettings(
+        IConfiguration configuration,
+        IHostEnvironment environment,
+        ILogger logger)
+    {
+        var email = configuration[EmailKey];
+        var password = configuration[PasswordKey];
+
+        if (environment.IsProduction())
+        {
+            var fromEnvironment = configuration is IConfigurationRoot root
+                ? root.Providers.OfType<EnvironmentVariablesConfigurationProvider>().ToList()
+                : [];
+            var environmentEmail = ReadFrom(fromEnvironment, EmailKey);
+            var environmentPassword = ReadFrom(fromEnvironment, PasswordKey);
+
+            if ((!string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(password)) &&
+                (environmentEmail is null || environmentPassword is null))
+            {
+                logger.LogWarning(
+                    "Seed admin settings were ignored. In Production they must be provided as environment variables.");
+            }
+
+            email = environmentEmail;
+            password = environmentPassword;
+        }
+
+        email = email?.Trim().ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)
+            ? (null, null)
+            : (email, password);
+    }
+
+    private static string? ReadFrom(IEnumerable<EnvironmentVariablesConfigurationProvider> providers, string key)
+    {
+        string? result = null;
+        foreach (var provider in providers)
+        {
+            if (provider.TryGet(key, out var value) && !string.IsNullOrWhiteSpace(value))
+                result = value;
+        }
+
+        return result;
     }
 
     private static async Task<string> GetAvailableUsernameAsync(

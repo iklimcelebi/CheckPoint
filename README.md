@@ -42,6 +42,8 @@ Run commands from the repository root.
    dotnet ef database update --project .\CheckPoint.Api\CheckPoint.Api.csproj
    ```
 
+   Alternatively, set `Database:AutoMigrate` to `true` in `appsettings.Development.json` (or with `dotnet user-secrets set "Database:AutoMigrate" "true" ...`) to apply pending migrations at startup. This only works in the Development environment.
+
 5. Run the API:
 
    ```powershell
@@ -61,21 +63,26 @@ With the default `http` profile no HTTPS port is known, so the startup log shows
 
 ## Configuration
 
-| Key | Default / source | Description |
-|---|---|---|
-| `ConnectionStrings:DefaultConnection` | SQL Server LocalDB `CheckPointDb` in `appsettings.json` | Database connection |
-| `Jwt:Issuer` | `CheckPoint.Api` | JWT issuer |
-| `Jwt:Audience` | `CheckPoint.Client` | JWT audience |
-| `Jwt:ExpiryMinutes` | `60` | Token lifetime in minutes |
-| `Jwt:Key` | User secrets | HS256 signing key; never commit |
-| `SeedAdmin:Email` | User secrets | Optional initial admin email |
-| `SeedAdmin:Password` | User secrets | Optional initial admin password |
-| `FileStorage:RootPath` | `uploads` | Local storage root, relative to the API project unless absolute |
-| `FileStorage:MaxFileSizeMB` | `20` | Maximum upload size in MiB |
-| `Kestrel:Limits:MaxRequestBodySize` | `1048576` (1 MiB) | Body size limit for every endpoint except uploads; uploads allow `MaxFileSizeMB` + 1 MiB |
-| `RateLimiting:Auth:PermitLimit` | `10` | Register/login requests allowed per client IP per window |
-| `RateLimiting:Auth:WindowSeconds` | `60` | Rate-limit window length in seconds |
-| `Cors:AllowedOrigins` | empty (Development: `http://localhost:5173`) | Browser origins allowed to call the API; empty means cross-origin calls are blocked |
+Settings are layered: `appsettings.json` (shared defaults) → `appsettings.{Environment}.json` → user secrets (Development only) → environment variables → command-line arguments. Environment variables use `__` instead of `:`, for example `Jwt__Key` or `ConnectionStrings__DefaultConnection`.
+
+| Key | Secret? | Default / source | Description |
+|---|---|---|---|
+| `ConnectionStrings:DefaultConnection` | Yes in Production (may contain a password) | Development: LocalDB `CheckPointDb` in `appsettings.Development.json`; no default elsewhere | Database connection; required |
+| `Jwt:Key` | **Yes** | User secrets (Development); environment variable or key vault (Production) | HS256 signing key, at least 32 characters; required |
+| `Jwt:Issuer` | No | `CheckPoint.Api` | JWT issuer; required |
+| `Jwt:Audience` | No | `CheckPoint.Client` | JWT audience; required |
+| `Jwt:ExpiryMinutes` | No | `60` | Token lifetime in minutes; required, positive |
+| `SeedAdmin:Email` | Personal data | User secrets (Development); **environment variable only** in Production | Optional initial admin email |
+| `SeedAdmin:Password` | **Yes** | User secrets (Development); **environment variable only** in Production | Optional initial admin password |
+| `FileStorage:RootPath` | No | `uploads` | Local storage root, relative to the API project unless absolute; required |
+| `FileStorage:MaxFileSizeMB` | No | `20` | Maximum upload size in MiB; required, positive |
+| `Kestrel:Limits:MaxRequestBodySize` | No | `1048576` (1 MiB) | Body size limit for every endpoint except uploads; uploads allow `MaxFileSizeMB` + 1 MiB |
+| `RateLimiting:Auth:PermitLimit` | No | `10` | Register/login requests allowed per client IP per window |
+| `RateLimiting:Auth:WindowSeconds` | No | `60` | Rate-limit window length in seconds |
+| `Cors:AllowedOrigins` | No | empty (Development: `http://localhost:5173`) | Browser origins allowed to call the API; empty means cross-origin calls are blocked |
+| `Database:AutoMigrate` | No | `false` | Apply pending migrations at startup; honored only in Development |
+
+The application validates the required settings at startup and stops with one message listing every missing or invalid key.
 
 Uploaded files are stored outside `wwwroot` and are not served as static files. The API saves files under a generated GUID filename; the original filename is sanitized and kept only as metadata. `CheckPoint.Api/uploads/` is ignored by Git.
 
@@ -111,6 +118,35 @@ A token is also rejected if its user no longer exists or the user's role changed
 
 - Downloads are served with the content type validated and stored at upload time, never the type the client claims later, and with `Content-Disposition: attachment` containing an ASCII fallback name plus an RFC 5987 UTF-8 `filename*`.
 - `IFileScanner` (`Services/IFileScanner.cs`) is called for every upload before the file is stored. The default `NoOpFileScanner` accepts every file. To add malware scanning (for example ClamAV or a cloud scanning service), implement the interface and register it in `Program.cs`. `Infected` returns `400`; `Unavailable` returns `503` and nothing is stored.
+
+## Environments
+
+| Environment | Swagger UI / OpenAPI | Auto-migrate | Seed admin source | Logs | HSTS |
+|---|---|---|---|---|---|
+| `Development` | `/swagger`, `/openapi/v1.json` | when `Database:AutoMigrate=true` | any configuration source (normally user secrets) | plain console | no |
+| `Production` | disabled (`404`) | never | environment variables `SeedAdmin__Email` and `SeedAdmin__Password` only; other sources are ignored with a warning | JSON console, UTC timestamps | yes |
+
+Set the environment with `ASPNETCORE_ENVIRONMENT`. `launchSettings.json` sets `Development` for local runs. Production-only settings live in `appsettings.Production.json`, which contains no secrets and no connection string.
+
+## Logging and health checks
+
+- Every request produces one log entry from `Microsoft.AspNetCore.HttpLogging.HttpLoggingMiddleware` with `Method`, `Path` (without the query string), `StatusCode`, `Duration` (ms), `TraceId`, and `UserId` when the caller is authenticated. Headers, query strings, and request/response bodies are never logged, so passwords, tokens, and e-mail addresses do not reach the logs. An automated test checks this.
+- Unhandled exceptions are logged once at `Error` level with the stack trace; clients get a generic `500` response. Rejected oversized or malformed requests are logged at `Warning`.
+- EF Core SQL command logs are reduced to `Warning`. SQL parameter values are never logged because sensitive data logging is off.
+- `GET /health` returns `200 Healthy` while the process is running (liveness).
+- `GET /health/ready` also checks that the database accepts connections, with a 5-second timeout, and returns `200 Healthy` or `503 Unhealthy` (readiness).
+- Both health endpoints are anonymous, return only the word `Healthy` or `Unhealthy`, and expose no version, connection, or error details.
+
+## Applying migrations in Production
+
+The application never migrates a non-Development database on startup. Generate an idempotent SQL script, review it, and apply it with an account that has schema-change rights:
+
+```powershell
+dotnet ef migrations script --idempotent --project .\CheckPoint.Api\CheckPoint.Api.csproj -o .\artifacts\migrate.sql
+sqlcmd -S <server> -d <database> -U <user> -i .\artifacts\migrate.sql
+```
+
+The script checks `__EFMigrationsHistory` before each migration, so running it against a database that is already partly migrated applies only the missing steps. Back up the database before applying it. Generating the script does not connect to any database, but the tool starts the application in the Development environment, so `Jwt:Key` must be available, for example from user secrets or an environment variable.
 
 ## Endpoints
 

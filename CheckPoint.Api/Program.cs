@@ -2,8 +2,11 @@ using System.Security.Claims;
 using CheckPoint.Api.Data;
 using CheckPoint.Api.Extensions;
 using CheckPoint.Api.Middleware;
+using CheckPoint.Api.Observability;
 using CheckPoint.Api.OpenApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
@@ -14,34 +17,24 @@ using CheckPoint.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
-{
-    throw new InvalidOperationException(
-        "JWT yapılandırması geçersiz. En az 32 karakterlik Jwt:Key değerini user-secrets ile ayarlayın.");
-}
+ConfigurationValidation.ValidateRequiredSettings(builder.Configuration);
 
+var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
-var jwtExpiryMinutes = builder.Configuration.GetValue<int>("Jwt:ExpiryMinutes");
-var maxFileSizeMb = builder.Configuration.GetValue<int>("FileStorage:MaxFileSizeMB");
-if (string.IsNullOrWhiteSpace(jwtIssuer) ||
-    string.IsNullOrWhiteSpace(jwtAudience) ||
-    jwtExpiryMinutes <= 0)
-{
-    throw new InvalidOperationException("Jwt:Issuer, Jwt:Audience ve pozitif Jwt:ExpiryMinutes ayarları gereklidir.");
-}
-if (maxFileSizeMb <= 0)
-{
-    throw new InvalidOperationException("FileStorage:MaxFileSizeMB pozitif bir sayı olmalıdır.");
-}
-
 var maxRequestBodySize = builder.Configuration.GetValue<long?>("Kestrel:Limits:MaxRequestBodySize") ?? 1024 * 1024;
-if (maxRequestBodySize <= 0)
-{
-    throw new InvalidOperationException("Kestrel:Limits:MaxRequestBodySize pozitif bir sayı olmalıdır.");
-}
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxRequestBodySize);
+
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = HttpLoggingFields.RequestMethod |
+        HttpLoggingFields.RequestPath |
+        HttpLoggingFields.ResponseStatusCode |
+        HttpLoggingFields.Duration;
+    options.CombineLogs = true;
+});
+builder.Services.AddHttpLoggingInterceptor<RequestLoggingInterceptor>();
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
 builder.Services
     .AddControllers(options =>
@@ -149,6 +142,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseHttpLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
@@ -170,11 +164,22 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") })
+    .AllowAnonymous();
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbSeeder.SeedAdminAsync(db, app.Configuration);
+    var startupLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("CheckPoint.Startup");
+
+    if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Database:AutoMigrate"))
+    {
+        startupLogger.LogInformation("Applying pending database migrations (Database:AutoMigrate).");
+        await db.Database.MigrateAsync();
+    }
+
+    await DbSeeder.SeedAdminAsync(db, app.Configuration, app.Environment, startupLogger);
 }
 
 app.Run();
