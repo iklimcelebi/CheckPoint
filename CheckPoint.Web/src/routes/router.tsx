@@ -1,14 +1,15 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { AppLayout } from '../components/AppLayout'
 import { AuthLayout } from '../components/AuthLayout'
-import { PlaceholderPage } from '../components/PlaceholderPage'
 import { GuestOnly, RequireAdmin, RequireAuth } from './guards'
 import { NotFoundPage } from './NotFoundPage'
+import { PageLoading } from './PageLoading'
 import { RouteErrorPage } from './RouteErrorPage'
 
 export const router = createBrowserRouter([
   {
     errorElement: <RouteErrorPage />,
+    hydrateFallbackElement: <PageLoading />,
     children: [
       {
         element: <GuestOnly />,
@@ -55,18 +56,16 @@ export const router = createBrowserRouter([
               },
               {
                 path: '/kaynaklar/:id/duzenle',
-                element: (
-                  <PlaceholderPage
-                    title="Kaynağı düzenle"
-                    description="Başlık, açıklama ve türü güncelleyin."
-                  />
-                ),
+                lazy: async () => ({
+                  Component: (await import('../features/resources/EditResourcePage'))
+                    .EditResourcePage,
+                }),
               },
               {
                 path: '/yukle',
-                element: (
-                  <PlaceholderPage title="Kaynak yükle" description="Yeni bir kaynak paylaşın." />
-                ),
+                lazy: async () => ({
+                  Component: (await import('../features/resources/UploadPage')).UploadPage,
+                }),
               },
               {
                 path: '/benim-kaynaklarim',
@@ -77,15 +76,16 @@ export const router = createBrowserRouter([
               },
               {
                 path: '/universiteler',
-                element: (
-                  <PlaceholderPage title="Üniversiteler" description="Kayıtlı üniversiteler." />
-                ),
+                lazy: async () => ({
+                  Component: (await import('../features/universities/UniversitiesPage'))
+                    .UniversitiesPage,
+                }),
               },
               {
                 path: '/dersler',
-                element: (
-                  <PlaceholderPage title="Dersler" description="Üniversitelere göre dersler." />
-                ),
+                lazy: async () => ({
+                  Component: (await import('../features/courses/CoursesPage')).CoursesPage,
+                }),
               },
               {
                 path: '/profil',
@@ -98,12 +98,9 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: '/yonetim',
-                    element: (
-                      <PlaceholderPage
-                        title="Yönetim"
-                        description="Yalnızca yöneticilerin erişebildiği işlemler."
-                      />
-                    ),
+                    lazy: async () => ({
+                      Component: (await import('../features/admin/AdminPage')).AdminPage,
+                    }),
                   },
                 ],
               },

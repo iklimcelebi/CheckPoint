@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError, errorMessage } from '../../api/errors'
 import { Page } from '../../components/Page'
 import { Alert } from '../../components/ui/Alert'
@@ -29,6 +29,7 @@ function NotFound() {
 export function ResourceDetailPage() {
   const resourceId = parsePositiveInt(useParams().id)
   const navigate = useNavigate()
+  const notice = (useLocation().state as { notice?: string } | null)?.notice
   const download = useDownloadResource()
 
   const query = useQuery({
@@ -103,6 +104,7 @@ export function ResourceDetailPage() {
         </div>
       }
     >
+      {notice && <Alert tone="success">{notice}</Alert>}
       {download.error && <Alert tone="error">{errorMessage(download.error)}</Alert>}
       <dl className="divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
         {details.map(([label, value]) => (

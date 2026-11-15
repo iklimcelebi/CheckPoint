@@ -40,7 +40,9 @@ public class UniversitiesController : ControllerBase
         if (!string.IsNullOrWhiteSpace(q))
         {
             var search = q.Trim();
-            query = query.Where(u => u.Name.Contains(search) || u.City.Contains(search));
+            query = query.Where(u => 
+                EF.Functions.Collate(u.Name, SearchCollation.CaseAndAccentInsensitive).Contains(search) ||
+                EF.Functions.Collate(u.City, SearchCollation.CaseAndAccentInsensitive).Contains(search));
         }
 
         return await query

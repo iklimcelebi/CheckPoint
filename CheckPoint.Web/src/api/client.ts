@@ -70,6 +70,46 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return (await response.json()) as T
 }
 
+export function apiUpload<T>(
+  path: string,
+  body: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const session = getSession()
+    const request = new XMLHttpRequest()
+    request.open('POST', buildUrl(path))
+    request.setRequestHeader('Accept', 'application/json, application/problem+json')
+    if (session) request.setRequestHeader('Authorization', `Bearer ${session.token}`)
+
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100))
+    }
+    request.onerror = () => reject(new ApiError(NETWORK_ERROR_STATUS))
+    request.onload = () => {
+      const payload = parseJson(request.responseText)
+      if (request.status >= 200 && request.status < 300) {
+        resolve(payload as T)
+        return
+      }
+      if (request.status === 401 && session) clearSession('expired')
+      const isProblem = (request.getResponseHeader('Content-Type') ?? '').includes('json')
+      reject(new ApiError(request.status, isProblem ? (payload as ProblemDetails) : undefined))
+    }
+
+    request.send(body)
+  })
+}
+
+function parseJson(text: string): unknown {
+  if (!text) return undefined
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
 export interface DownloadedFile {
   blob: Blob
   fileName: string

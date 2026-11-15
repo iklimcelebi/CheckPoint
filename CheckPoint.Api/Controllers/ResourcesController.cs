@@ -88,8 +88,9 @@ public class ResourcesController : ControllerBase
         {
             var search = q.Trim();
             query = query.Where(resource =>
-                resource.Title.Contains(search) ||
-                (resource.Description != null && resource.Description.Contains(search)));
+                EF.Functions.Collate(resource.Title, SearchCollation.CaseAndAccentInsensitive).Contains(search) ||
+                (resource.Description != null &&
+                    EF.Functions.Collate(resource.Description, SearchCollation.CaseAndAccentInsensitive).Contains(search)));
         }
 
         return Ok(await ToPagedResponseAsync(query, page, pageSize, cancellationToken));

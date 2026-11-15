@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '../../api/client'
-import type { PagedResponse, University } from '../../api/types'
+import type { PagedResponse, University, UniversityRequest } from '../../api/types'
 
 export const OPTIONS_PAGE_SIZE = 100
 
@@ -24,4 +24,16 @@ export function useUniversityOptions() {
     select: (data) => data.items,
     staleTime: 5 * 60_000,
   })
+}
+
+export function createUniversity(body: UniversityRequest) {
+  return apiRequest<University>('/api/universities', { method: 'POST', json: body })
+}
+
+export function updateUniversity(id: number, body: UniversityRequest) {
+  return apiRequest<void>(`/api/universities/${id}`, { method: 'PUT', json: body })
+}
+
+export function deleteUniversity(id: number) {
+  return apiRequest<void>(`/api/universities/${id}`, { method: 'DELETE' })
 }

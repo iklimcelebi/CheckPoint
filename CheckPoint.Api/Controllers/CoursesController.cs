@@ -45,7 +45,9 @@ public class CoursesController : ControllerBase
         if (!string.IsNullOrWhiteSpace(q))
         {
             var search = q.Trim();
-            query = query.Where(course => course.Name.Contains(search) || course.Code.Contains(search));
+            query = query.Where(course => 
+                EF.Functions.Collate(course.Name, SearchCollation.CaseAndAccentInsensitive).Contains(search) ||
+                EF.Functions.Collate(course.Code, SearchCollation.CaseAndAccentInsensitive).Contains(search));
         }
 
         return await query
