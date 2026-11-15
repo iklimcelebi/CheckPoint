@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using CheckPoint.Api.Validation;
 
 namespace CheckPoint.Api.Dtos;
 
@@ -16,7 +17,9 @@ public sealed record RegisterRequest
     public required string Email { get; init; }
 
     [Required(ErrorMessage = "Parola zorunludur.")]
-    [StringLength(128, MinimumLength = 8, ErrorMessage = "Parola 8 ile 128 karakter arasında olmalıdır.")]
+    [StringLength(PasswordPolicy.MaximumLength, MinimumLength = PasswordPolicy.MinimumLength,
+        ErrorMessage = PasswordPolicy.LengthMessage)]
+    [PasswordPolicy]
     public required string Password { get; init; }
 }
 

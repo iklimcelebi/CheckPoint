@@ -30,6 +30,21 @@ public sealed class EnvironmentConfigurationTests : IAsyncLifetime
         Assert.Contains(expectedKey, exception.Message);
     }
 
+    [Theory]
+    [InlineData("kisaP1")]
+    [InlineData("sadeceharfler")]
+    [InlineData("1234567890")]
+    public async Task SeedAdminPasswordViolatingPolicy_StopsStartup(string password)
+    {
+        await _factory.CreateDatabaseAsync();
+        _factory.Settings["SeedAdmin:Password"] = password;
+
+        var message = Assert.ThrowsAny<Exception>(() => _factory.CreateClient()).GetBaseException().Message;
+
+        Assert.Contains("SeedAdmin:Password parola kuralına uymuyor", message);
+        Assert.DoesNotContain(password, message);
+    }
+
     [Fact]
     public void SeveralInvalidSettings_AreReportedTogether()
     {

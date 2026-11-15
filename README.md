@@ -108,6 +108,10 @@ The API validates tokens with a single key. Rotating it:
 
 A token is also rejected if its user no longer exists or the user's role changed after the token was issued.
 
+### Password policy
+
+New passwords (registration and `SeedAdmin:Password`) must be 8–64 characters long, contain at least one letter and one digit, and fit in 72 bytes of UTF-8. The byte limit exists because BCrypt ignores everything after 72 bytes; Turkish letters such as `ğ`, `ü`, and `ş` take 2 bytes each. Existing accounts are not affected, and sign-in does not apply the policy. An invalid `SeedAdmin:Password` stops the application at startup without printing the password.
+
 ### Request protection
 
 - **Rate limiting:** `POST /api/auth/register` and `POST /api/auth/login` share a fixed-window limit per client IP. Exceeding it returns `429` with a `Retry-After` header. Behind a reverse proxy, forwarded headers must be configured so the real client IP is used; otherwise every client shares the proxy's limit.

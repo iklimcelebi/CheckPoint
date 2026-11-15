@@ -21,7 +21,7 @@ public sealed class CheckPointApiFactory : WebApplicationFactory<Program>
         UploadRoot = Path.Combine(Path.GetTempPath(), "CheckPointTests", _id);
         JwtKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
         AdminEmail = $"admin{_id[..8]}@test.local";
-        AdminPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(18));
+        AdminPassword = $"Aa1{Convert.ToBase64String(RandomNumberGenerator.GetBytes(18))}";
     }
 
     public string DatabaseName { get; }

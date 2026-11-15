@@ -13,7 +13,7 @@ public sealed class ExampleSchemaTransformer : IOpenApiSchemaTransformer
         {
             ["username"] = new OpenApiString("ayse"),
             ["email"] = new OpenApiString("ayse@example.com"),
-            ["password"] = new OpenApiString("<en az 8 karakterlik parola>")
+            ["password"] = new OpenApiString("<8-64 karakter, en az bir harf ve bir rakam>")
         },
         [typeof(LoginRequest)] = () => new OpenApiObject
         {

@@ -1,4 +1,5 @@
 using CheckPoint.Api.Models;
+using CheckPoint.Api.Validation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
 
@@ -23,8 +24,8 @@ public static class DbSeeder
         if (await db.Users.AnyAsync(user => user.Role == "Admin", cancellationToken))
             return;
 
-        if (password.Length < 8)
-            throw new InvalidOperationException("SeedAdmin:Password en az 8 karakter olmalıdır.");
+        if (PasswordPolicy.Validate(password) is { } passwordError)
+            throw new InvalidOperationException($"SeedAdmin:Password parola kuralına uymuyor: {passwordError}");
 
         if (await db.Users.AnyAsync(user => user.Email == email, cancellationToken))
         {

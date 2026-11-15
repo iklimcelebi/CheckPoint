@@ -19,8 +19,12 @@ public sealed class ValidationTests : ApiTestBase
         { """{"username":"ayse","email":"gecersiz","password":"Parola123"}""", "Geçerli bir e-posta adresi girin." },
         { """{"username":"ayse","email":"","password":"Parola123"}""", "E-posta adresi zorunludur." },
         { $$"""{"username":"ayse","email":"{{new string('a', 250)}}@test.local","password":"Parola123"}""", "E-posta adresi en fazla 256 karakter olabilir." },
-        { """{"username":"ayse","email":"a@test.local","password":"1234567"}""", "Parola 8 ile 128 karakter arasında olmalıdır." },
-        { $$"""{"username":"ayse","email":"a@test.local","password":"{{new string('a', 129)}}"}""", "Parola 8 ile 128 karakter arasında olmalıdır." },
+        { """{"username":"ayse","email":"a@test.local","password":"Parol12"}""", "Parola 8 ile 64 karakter arasında olmalıdır." },
+        { $$"""{"username":"ayse","email":"a@test.local","password":"{{new string('a', 64)}}1"}""", "Parola 8 ile 64 karakter arasında olmalıdır." },
+        { """{"username":"ayse","email":"a@test.local","password":"sadeceharf"}""", "Parola en az bir harf ve bir rakam içermelidir." },
+        { """{"username":"ayse","email":"a@test.local","password":"12345678"}""", "Parola en az bir harf ve bir rakam içermelidir." },
+        { """{"username":"ayse","email":"a@test.local","password":"!@#$%^&*()"}""", "Parola en az bir harf ve bir rakam içermelidir." },
+        { $$"""{"username":"ayse","email":"a@test.local","password":"{{new string('ğ', 36)}}1"}""", "Parola çok uzun: ğ, ü, ş gibi Türkçe karakterler 2 bayt sayıldığından parola en fazla 72 bayt olabilir." },
         { """{"username":"ayse","email":"a@test.local"}""", InvalidValue },
         { """{"username":"ayse",""", InvalidValue }
     };
@@ -32,6 +36,28 @@ public sealed class ValidationTests : ApiTestBase
         var response = await PostJsonTextAsync(CreateClient(), "/api/auth/register", json);
 
         await AssertValidationErrorAsync(response, expectedMessage);
+    }
+
+    [Theory]
+    [InlineData("Parola12")]
+    [InlineData("Şifreğüş1")]
+    [InlineData("çok gizli 2024 parolam")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1")]
+    [InlineData("ğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğ1")]
+    public async Task Register_PasswordMeetingPolicy_Returns201AndCanLogin(string password)
+    {
+        var response = await RegisterRawAsync(new { username = "kuralauyan", email = "kural@test.local", password });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await LoginAsync("kural@test.local", password);
+    }
+
+    [Fact]
+    public async Task Login_DoesNotApplyPasswordPolicy()
+    {
+        var response = await LoginRawAsync("yok@test.local", "kural-disi");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
