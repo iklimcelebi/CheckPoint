@@ -56,6 +56,7 @@ builder.Services.AddOpenApi(options =>
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
     options.AddSchemaTransformer<ResourceTypeSchemaTransformer>();
     options.AddSchemaTransformer<ExampleSchemaTransformer>();
+    options.AddSchemaTransformer<NumericSchemaTransformer>();
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -146,9 +147,6 @@ app.UseHttpLogging();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-if (app.Environment.IsProduction())
-    app.UseHsts();
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -179,7 +177,15 @@ using (var scope = app.Services.CreateScope())
         await db.Database.MigrateAsync();
     }
 
-    await DbSeeder.SeedAdminAsync(db, app.Configuration, app.Environment, startupLogger);
+    await DbSeeder.SeedAdminAsync(db, app.Configuration, startupLogger);
+
+    if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Seed:DemoData"))
+    {
+        await DemoDataSeeder.SeedAsync(
+            db,
+            scope.ServiceProvider.GetRequiredService<IFileStorageService>(),
+            startupLogger);
+    }
 }
 
 app.Run();

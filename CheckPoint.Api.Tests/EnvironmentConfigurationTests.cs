@@ -68,7 +68,14 @@ public sealed class EnvironmentConfigurationTests : IAsyncLifetime
 
         Assert.True(await _factory.DatabaseExistsAsync());
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/openapi/v1.json")).StatusCode);
+        var openApi = await client.GetAsync("/openapi/v1.json");
+        Assert.Equal(HttpStatusCode.OK, openApi.StatusCode);
+        using var document = System.Text.Json.JsonDocument.Parse(await openApi.Content.ReadAsStringAsync());
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        Assert.Equal("integer", schemas.GetProperty("PagedResponseOfUniversityResponse")
+            .GetProperty("properties").GetProperty("totalCount").GetProperty("type").GetString());
+        Assert.Equal("integer", schemas.GetProperty("UniversityResponse")
+            .GetProperty("properties").GetProperty("id").GetProperty("type").GetString());
         var swagger = await client.GetAsync("/swagger/index.html");
         Assert.Equal(HttpStatusCode.OK, swagger.StatusCode);
         Assert.Contains("'unsafe-inline'", Assert.Single(swagger.Headers.GetValues("Content-Security-Policy")));
@@ -77,7 +84,6 @@ public sealed class EnvironmentConfigurationTests : IAsyncLifetime
     [Theory]
     [InlineData("Development", "false")]
     [InlineData("Testing", "true")]
-    [InlineData("Production", "true")]
     public async Task AutoMigrate_RunsOnlyInDevelopmentWhenEnabled(string environment, string autoMigrate)
     {
         _factory.EnvironmentName = environment;
@@ -95,51 +101,14 @@ public sealed class EnvironmentConfigurationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Production_DisablesSwaggerAndIgnoresSeedAdminFromNonEnvironmentSources()
+    public async Task OutsideDevelopment_SwaggerIsDisabled()
     {
         await _factory.CreateDatabaseAsync();
-        _factory.EnvironmentName = "Production";
 
         var client = _factory.CreateClient();
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/swagger/index.html")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/openapi/v1.json")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
-        await using var db = _factory.CreateDbContext();
-        Assert.False(db.Users.Any(user => user.Role == "Admin"));
-    }
-}
-
-[CollectionDefinition(nameof(ProcessEnvironmentCollection), DisableParallelization = true)]
-public sealed class ProcessEnvironmentCollection;
-
-[Collection(nameof(ProcessEnvironmentCollection))]
-public sealed class ProductionSeedAdminTests : IAsyncLifetime
-{
-    private readonly CheckPointApiFactory _factory = new();
-
-    public async Task InitializeAsync() => await _factory.CreateDatabaseAsync();
-
-    public async Task DisposeAsync()
-    {
-        Environment.SetEnvironmentVariable("SeedAdmin__Email", null);
-        Environment.SetEnvironmentVariable("SeedAdmin__Password", null);
-        await _factory.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task Production_CreatesSeedAdminFromEnvironmentVariables()
-    {
-        _factory.EnvironmentName = "Production";
-        _factory.Settings["SeedAdmin:Email"] = null;
-        _factory.Settings["SeedAdmin:Password"] = null;
-        Environment.SetEnvironmentVariable("SeedAdmin__Email", _factory.AdminEmail);
-        Environment.SetEnvironmentVariable("SeedAdmin__Password", _factory.AdminPassword);
-
-        _factory.CreateClient();
-
-        await using var db = _factory.CreateDbContext();
-        var admin = Assert.Single(db.Users.Where(user => user.Role == "Admin"));
-        Assert.Equal(_factory.AdminEmail, admin.Email);
     }
 }

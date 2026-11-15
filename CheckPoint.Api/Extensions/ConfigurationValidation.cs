@@ -5,7 +5,6 @@ namespace CheckPoint.Api.Extensions;
 public static class ConfigurationValidation
 {
     public const int MinimumJwtKeyLength = 32;
-    public const string LocalStorageProvider = "Local";
 
     public static void ValidateRequiredSettings(IConfiguration configuration)
     {
@@ -14,14 +13,14 @@ public static class ConfigurationValidation
         if (string.IsNullOrWhiteSpace(configuration.GetConnectionString("DefaultConnection")))
         {
             errors.Add("ConnectionStrings:DefaultConnection zorunludur " +
-                "(üretimde ConnectionStrings__DefaultConnection ortam değişkeni ile verin).");
+                "(appsettings.Development.json içinde tanımlıdır; uygulamayı Development ortamında çalıştırın).");
         }
 
         var jwtKey = configuration["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < MinimumJwtKeyLength)
         {
             errors.Add($"Jwt:Key en az {MinimumJwtKeyLength} karakter olmalıdır " +
-                "(geliştirmede user-secrets, üretimde Jwt__Key ortam değişkeni veya anahtar kasası ile verin).");
+                "(README'deki 'dotnet user-secrets set \"Jwt:Key\" ...' adımıyla ayarlayın).");
         }
 
         if (string.IsNullOrWhiteSpace(configuration["Jwt:Issuer"]))
@@ -30,13 +29,6 @@ public static class ConfigurationValidation
             errors.Add("Jwt:Audience zorunludur.");
         if (!IsPositiveInteger(configuration["Jwt:ExpiryMinutes"]))
             errors.Add("Jwt:ExpiryMinutes pozitif bir tam sayı olmalıdır.");
-
-        var storageProvider = configuration["FileStorage:Provider"];
-        if (!string.Equals(storageProvider, LocalStorageProvider, StringComparison.OrdinalIgnoreCase))
-        {
-            errors.Add($"FileStorage:Provider için desteklenen değer şu an yalnızca '{LocalStorageProvider}' " +
-                $"(verilen: '{storageProvider}').");
-        }
 
         if (string.IsNullOrWhiteSpace(configuration["FileStorage:RootPath"]))
             errors.Add("FileStorage:RootPath zorunludur.");

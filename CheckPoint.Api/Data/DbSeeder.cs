@@ -1,7 +1,6 @@
 using CheckPoint.Api.Models;
 using CheckPoint.Api.Validation;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration.EnvironmentVariables;
 
 namespace CheckPoint.Api.Data;
 
@@ -13,12 +12,12 @@ public static class DbSeeder
     public static async Task SeedAdminAsync(
         AppDbContext db,
         IConfiguration configuration,
-        IHostEnvironment environment,
         ILogger logger,
         CancellationToken cancellationToken = default)
     {
-        var (email, password) = ReadSeedSettings(configuration, environment, logger);
-        if (email is null || password is null)
+        var email = configuration[EmailKey]?.Trim().ToLowerInvariant();
+        var password = configuration[PasswordKey];
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             return;
 
         if (await db.Users.AnyAsync(user => user.Role == "Admin", cancellationToken))
@@ -45,51 +44,6 @@ public static class DbSeeder
 
         await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Seed admin account created.");
-    }
-
-    private static (string? Email, string? Password) ReadSeedSettings(
-        IConfiguration configuration,
-        IHostEnvironment environment,
-        ILogger logger)
-    {
-        var email = configuration[EmailKey];
-        var password = configuration[PasswordKey];
-
-        if (environment.IsProduction())
-        {
-            var fromEnvironment = configuration is IConfigurationRoot root
-                ? root.Providers.OfType<EnvironmentVariablesConfigurationProvider>().ToList()
-                : [];
-            var environmentEmail = ReadFrom(fromEnvironment, EmailKey);
-            var environmentPassword = ReadFrom(fromEnvironment, PasswordKey);
-
-            if ((!string.IsNullOrWhiteSpace(email) || !string.IsNullOrWhiteSpace(password)) &&
-                (environmentEmail is null || environmentPassword is null))
-            {
-                logger.LogWarning(
-                    "Seed admin settings were ignored. In Production they must be provided as environment variables.");
-            }
-
-            email = environmentEmail;
-            password = environmentPassword;
-        }
-
-        email = email?.Trim().ToLowerInvariant();
-        return string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)
-            ? (null, null)
-            : (email, password);
-    }
-
-    private static string? ReadFrom(IEnumerable<EnvironmentVariablesConfigurationProvider> providers, string key)
-    {
-        string? result = null;
-        foreach (var provider in providers)
-        {
-            if (provider.TryGet(key, out var value) && !string.IsNullOrWhiteSpace(value))
-                result = value;
-        }
-
-        return result;
     }
 
     private static async Task<string> GetAvailableUsernameAsync(

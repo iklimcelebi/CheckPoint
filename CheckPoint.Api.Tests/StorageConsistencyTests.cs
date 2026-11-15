@@ -148,27 +148,6 @@ public sealed class StorageConsistencyTests : ApiTestBase
         await AssertProblemAsync(response, HttpStatusCode.ServiceUnavailable);
     }
 
-    [Theory]
-    [InlineData("AzureBlob")]
-    [InlineData("Ftp")]
-    [InlineData("")]
-    public void UnsupportedStorageProvider_StopsStartup(string provider)
-    {
-        Factory.Settings["FileStorage:Provider"] = provider;
-
-        var message = Assert.ThrowsAny<Exception>(() => Factory.CreateClient()).GetBaseException().Message;
-
-        Assert.Contains("FileStorage:Provider", message);
-    }
-
-    [Fact]
-    public async Task StorageProvider_IsCaseInsensitive()
-    {
-        Factory.Settings["FileStorage:Provider"] = "local";
-
-        Assert.Equal(HttpStatusCode.OK, (await CreateClient().GetAsync("/health")).StatusCode);
-    }
-
     [Fact]
     public void DiskFullErrors_AreRecognized()
     {
