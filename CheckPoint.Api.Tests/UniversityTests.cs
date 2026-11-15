@@ -31,8 +31,8 @@ public sealed class UniversityTests : ApiTestBase
             new { name = "Pamukkale Üni", city = "Denizli" });
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
 
-        var list = await admin.Client.GetFromJsonAsync<List<UniversityResponse>>("/api/universities", JsonOptions);
-        Assert.Contains(list!, university => university.Id == created.Id && university.Name == "Pamukkale Üni");
+        var list = await admin.Client.GetFromJsonAsync<PagedResponse<UniversityResponse>>("/api/universities", JsonOptions);
+        Assert.Contains(list!.Items, university => university.Id == created.Id && university.Name == "Pamukkale Üni");
 
         var delete = await admin.Client.DeleteAsync($"/api/universities/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
@@ -49,9 +49,9 @@ public sealed class UniversityTests : ApiTestBase
         await CreateUniversityAsync(admin.Client, "Akdeniz Üniversitesi");
         var user = await CreateUserAsync();
 
-        var list = await user.Client.GetFromJsonAsync<List<UniversityResponse>>("/api/universities", JsonOptions);
+        var list = await user.Client.GetFromJsonAsync<PagedResponse<UniversityResponse>>("/api/universities", JsonOptions);
 
-        Assert.Equal(["Akdeniz Üniversitesi", "Zirve Üniversitesi"], list!.Select(university => university.Name));
+        Assert.Equal(["Akdeniz Üniversitesi", "Zirve Üniversitesi"], list!.Items.Select(university => university.Name));
     }
 
     [Fact]

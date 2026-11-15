@@ -77,13 +77,13 @@ public sealed class CourseTests : ApiTestBase
         var firstCourse = await CreateCourseAsync(admin.Client, first.Id);
         var secondCourse = await CreateCourseAsync(admin.Client, second.Id);
 
-        var all = await admin.Client.GetFromJsonAsync<List<CourseResponse>>("/api/courses", JsonOptions);
-        var filtered = await admin.Client.GetFromJsonAsync<List<CourseResponse>>(
+        var all = await admin.Client.GetFromJsonAsync<PagedResponse<CourseResponse>>("/api/courses", JsonOptions);
+        var filtered = await admin.Client.GetFromJsonAsync<PagedResponse<CourseResponse>>(
             $"/api/courses?universityId={first.Id}", JsonOptions);
 
-        Assert.Equal(2, all!.Count);
-        Assert.Equal([firstCourse.Id], filtered!.Select(course => course.Id));
-        Assert.DoesNotContain(filtered!, course => course.Id == secondCourse.Id);
+        Assert.Equal(2, all!.TotalCount);
+        Assert.Equal([firstCourse.Id], filtered!.Items.Select(course => course.Id));
+        Assert.DoesNotContain(filtered!.Items, course => course.Id == secondCourse.Id);
     }
 
     [Fact]

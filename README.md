@@ -76,12 +76,12 @@ All endpoints require a valid JWT unless the access column says otherwise. `User
 | POST | `/api/auth/login` | Public | Sign in and receive a JWT |
 | GET | `/api/users/me` | User, Admin | Get the authenticated user's profile |
 | GET | `/api/users/me/resources` | User, Admin | Paginated resources uploaded by the authenticated user |
-| GET | `/api/Universities` | User, Admin | List universities |
+| GET | `/api/Universities` | User, Admin | Paginated universities; optional `q` search on name or city |
 | GET | `/api/Universities/{id}` | User, Admin | Get a university |
 | POST | `/api/Universities` | Admin | Create a university |
 | PUT | `/api/Universities/{id}` | Admin | Update a university |
 | DELETE | `/api/Universities/{id}` | Admin | Delete a university without courses |
-| GET | `/api/courses` | User, Admin | List courses; optional `universityId` filter |
+| GET | `/api/courses` | User, Admin | Paginated courses; optional `universityId` filter and `q` search on name or code |
 | GET | `/api/courses/{id}` | User, Admin | Get a course |
 | POST | `/api/courses` | User, Admin | Create a course |
 | PUT | `/api/courses/{id}` | User, Admin | Update a course; university cannot be changed |
@@ -92,7 +92,11 @@ All endpoints require a valid JWT unless the access column says otherwise. `User
 | PUT | `/api/resources/{id}` | Owner, Admin | Update title, description, and type |
 | DELETE | `/api/resources/{id}` | Owner, Admin | Delete a resource and its stored file |
 
-Resource listing accepts optional `universityId`, `courseId`, `type`, and `q` filters, plus `page` (default `1`) and `pageSize` (default `20`, maximum `100`). Results are ordered by upload time, newest first.
+All list endpoints (`/api/Universities`, `/api/courses`, `/api/resources`, `/api/users/me/resources`) return `{ items, page, pageSize, totalCount }` and accept `page` (default `1`) and `pageSize` (default `20`, maximum `100`). The `q` search text is limited to 100 characters. Universities and courses are ordered by name; resources by upload time, newest first.
+
+Resource listing accepts optional `universityId`, `courseId`, `type`, and `q` filters.
+
+A token is rejected with `401` if its user no longer exists or the user's role has changed since the token was issued; the user must sign in again.
 
 ## File upload rules
 

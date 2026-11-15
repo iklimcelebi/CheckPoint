@@ -134,14 +134,31 @@ public abstract class ApiTestBase : IAsyncLifetime
     protected static async Task<T?> ReadAsync<T>(HttpResponseMessage response) =>
         await response.Content.ReadFromJsonAsync<T>(JsonOptions);
 
-    protected static async Task AssertProblemAsync(HttpResponseMessage response, HttpStatusCode expectedStatus)
+    protected static async Task<ProblemDetails> AssertProblemAsync(HttpResponseMessage response, HttpStatusCode expectedStatus)
     {
         Assert.Equal(expectedStatus, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = await ReadAsync<ProblemDetails>(response);
         Assert.NotNull(problem);
         Assert.Equal((int)expectedStatus, problem.Status);
+        Assert.False(string.IsNullOrWhiteSpace(problem.Title));
+        return problem;
     }
+
+    protected static async Task AssertValidationErrorAsync(HttpResponseMessage response, string expectedMessage)
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await ReadAsync<ValidationProblemDetails>(response);
+        Assert.NotNull(problem);
+        Assert.Equal(Api.Extensions.ApiBehaviorExtensions.ValidationTitle, problem.Title);
+        var messages = problem.Errors.SelectMany(error => error.Value).ToArray();
+        Assert.Contains(expectedMessage, messages);
+        Assert.DoesNotContain(messages, message => message.StartsWith("The ", StringComparison.Ordinal));
+    }
+
+    protected static async Task<HttpResponseMessage> PostJsonTextAsync(HttpClient client, string url, string json) =>
+        await client.PostAsync(url, new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
 
     protected string[] StoredFiles() =>
         Directory.Exists(Factory.UploadRoot) ? Directory.GetFiles(Factory.UploadRoot) : [];

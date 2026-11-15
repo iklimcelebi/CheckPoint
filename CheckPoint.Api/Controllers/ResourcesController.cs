@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Text;
 using CheckPoint.Api.Data;
@@ -14,6 +17,7 @@ namespace CheckPoint.Api.Controllers;
 [ApiController]
 [Route("api/resources")]
 [Authorize]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
 public class ResourcesController : ControllerBase
 {
     private const long BytesPerMegabyte = 1024 * 1024;
@@ -31,6 +35,8 @@ public class ResourcesController : ControllerBase
             [".jpeg"] = "image/jpeg"
         };
 
+    private static readonly SearchValues<char> InvalidFileNameCharacters = SearchValues.Create("\"<>:|?*");
+
     private readonly AppDbContext _db;
     private readonly IFileStorageService _fileStorage;
     private readonly long _maxFileSize;
@@ -46,20 +52,23 @@ public class ResourcesController : ControllerBase
     }
 
     [HttpGet]
+    [EndpointSummary("Kaynakları listeler")]
+    [EndpointDescription(
+        "En yeni yüklenen önce gelecek şekilde sayfalı liste döner. universityId, courseId ve type ile süzülür; " +
+        "q verilirse başlık veya açıklama içinde arar.")]
     [ProducesResponseType(typeof(PagedResponse<ResourceResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<ResourceResponse>>> GetAll(
         [FromQuery] int? universityId,
         [FromQuery] int? courseId,
         [FromQuery] ResourceType? type,
-        [FromQuery] string? q,
+        [FromQuery, StringLength(100, ErrorMessage = "Arama metni en fazla 100 karakter olabilir.")] string? q,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = Pagination.DefaultPageSize,
         CancellationToken cancellationToken = default)
     {
-        if (page < 1 || pageSize < 1 || pageSize > 100)
-            return Problem(detail: "Sayfa en az 1, sayfa boyutu 1 ile 100 arasında olmalıdır.",
-                statusCode: StatusCodes.Status400BadRequest);
+        if (!Pagination.IsValid(page, pageSize))
+            return Problem(detail: Pagination.InvalidPagingMessage, statusCode: StatusCodes.Status400BadRequest);
 
         var query = _db.EducationalResources.AsNoTracking();
         if (universityId.HasValue)
@@ -80,6 +89,7 @@ public class ResourcesController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [EndpointSummary("Kaynak ayrıntısını getirir")]
     [ProducesResponseType(typeof(ResourceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ResourceResponse>> GetById(int id, CancellationToken cancellationToken)
@@ -98,8 +108,13 @@ public class ResourcesController : ControllerBase
 
     [HttpPost]
     [Consumes("multipart/form-data")]
+    [EndpointSummary("Kaynak yükler")]
+    [EndpointDescription(
+        "multipart/form-data ile Title, Description (isteğe bağlı), UniversityId, CourseId, Type ve File alanları " +
+        "gönderilir. İzinli uzantılar: .pdf .doc .docx .ppt .pptx .txt .png .jpg .jpeg; uzantı ile Content-Type " +
+        "eşleşmelidir. Boş dosya 400, boyut sınırı aşımı 413, desteklenmeyen tür veya içerik imzası uyuşmazlığı 415 döner.")]
     [ProducesResponseType(typeof(ResourceResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status413PayloadTooLarge)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status415UnsupportedMediaType)]
     public async Task<ActionResult<ResourceResponse>> Create(
@@ -128,8 +143,8 @@ public class ResourcesController : ControllerBase
                 statusCode: StatusCodes.Status415UnsupportedMediaType);
         }
 
-        var originalFileName = Path.GetFileName(request.File.FileName);
-        if (string.IsNullOrWhiteSpace(originalFileName) || originalFileName.Length > 260)
+        var originalFileName = SanitizeFileName(request.File.FileName);
+        if (originalFileName is null)
             return Problem(detail: "Dosya adı geçersiz.", statusCode: StatusCodes.Status400BadRequest);
 
         await using (var stream = request.File.OpenReadStream())
@@ -209,7 +224,11 @@ public class ResourcesController : ControllerBase
     }
 
     [HttpGet("{id:int}/download")]
-    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [EndpointSummary("Kaynak dosyasını indirir")]
+    [EndpointDescription(
+        "Dosya, yüklemede doğrulanmış içerik türüyle ve Content-Disposition: attachment başlığıyla döner. " +
+        "Dosya adı ASCII yedek ad (filename) ve UTF-8 (filename*) olarak kodlanır.")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK, "application/octet-stream")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Download(int id, CancellationToken cancellationToken)
     {
@@ -238,7 +257,10 @@ public class ResourcesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [EndpointSummary("Kaynağı günceller (yükleyen veya Admin)")]
+    [EndpointDescription("Sadece Title, Description ve Type değişir.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
@@ -266,6 +288,7 @@ public class ResourcesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [EndpointSummary("Kaynağı ve dosyasını siler (yükleyen veya Admin)")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -289,22 +312,37 @@ public class ResourcesController : ControllerBase
     private bool CanManage(EducationalResource resource) =>
         User.IsInRole("Admin") || resource.UploadedByUserId == User.GetUserId();
 
-    internal static async Task<PagedResponse<ResourceResponse>> ToPagedResponseAsync(
+    internal static Task<PagedResponse<ResourceResponse>> ToPagedResponseAsync(
         IQueryable<EducationalResource> query,
         int page,
         int pageSize,
-        CancellationToken cancellationToken)
-    {
-        var totalCount = await query.CountAsync(cancellationToken);
-        var skip = (long)(page - 1) * pageSize;
-        var items = await query
+        CancellationToken cancellationToken) =>
+        query
             .OrderByDescending(resource => resource.UploadedAt)
-            .Skip(skip > int.MaxValue ? int.MaxValue : (int)skip)
-            .Take(pageSize)
+            .ThenByDescending(resource => resource.Id)
             .Select(ResourceProjection())
-            .ToListAsync(cancellationToken);
+            .ToPagedResponseAsync(page, pageSize, cancellationToken);
 
-        return new PagedResponse<ResourceResponse>(items, page, pageSize, totalCount);
+    internal static string? SanitizeFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return null;
+
+        var name = fileName[(fileName.LastIndexOfAny(['/', '\\']) + 1)..];
+        var builder = new StringBuilder(name.Length);
+        foreach (var character in name)
+        {
+            if (char.IsControl(character) || CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.Format)
+                continue;
+
+            builder.Append(InvalidFileNameCharacters.Contains(character) ? '_' : character);
+        }
+
+        var sanitized = builder.ToString().Trim().TrimEnd('.', ' ');
+        if (sanitized.Length is 0 or > 260 || Path.GetFileNameWithoutExtension(sanitized).Trim(' ', '.').Length == 0)
+            return null;
+
+        return sanitized;
     }
 
     internal static Expression<Func<EducationalResource, ResourceResponse>> ResourceProjection() =>

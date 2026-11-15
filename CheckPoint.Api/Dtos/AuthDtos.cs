@@ -16,7 +16,7 @@ public sealed record RegisterRequest
     public required string Email { get; init; }
 
     [Required(ErrorMessage = "Parola zorunludur.")]
-    [MinLength(8, ErrorMessage = "Parola en az 8 karakter olmalıdır.")]
+    [StringLength(128, MinimumLength = 8, ErrorMessage = "Parola 8 ile 128 karakter arasında olmalıdır.")]
     public required string Password { get; init; }
 }
 
@@ -29,6 +29,7 @@ public sealed record LoginRequest
     public required string Email { get; init; }
 
     [Required(ErrorMessage = "Parola zorunludur.")]
+    [StringLength(1024, ErrorMessage = "Parola çok uzun.")]
     public required string Password { get; init; }
 }
 

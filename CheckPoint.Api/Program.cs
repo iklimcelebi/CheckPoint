@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using CheckPoint.Api.Data;
+using CheckPoint.Api.Extensions;
 using CheckPoint.Api.Middleware;
 using CheckPoint.Api.OpenApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,14 +36,26 @@ if (maxFileSizeMb <= 0)
     throw new InvalidOperationException("FileStorage:MaxFileSizeMB pozitif bir sayı olmalıdır.");
 }
 
-builder.Services.AddControllers().AddJsonOptions(options =>
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services
+    .AddControllers(options =>
+    {
+        options.ModelBindingMessageProvider.UseTurkishModelBindingMessages();
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+    })
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.AllowInputFormatterExceptionMessages = false;
+    })
+    .ConfigureApiBehaviorOptions(options => options.UseTurkishProblemResponses());
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options =>
+    options.CustomizeProblemDetails = context => context.UseTurkishTitles());
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
     options.AddSchemaTransformer<ResourceTypeSchemaTransformer>();
+    options.AddSchemaTransformer<ExampleSchemaTransformer>();
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -54,6 +68,26 @@ builder.Services
     {
         options.Events = new JwtBearerEvents
         {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                if (principal is null ||
+                    !int.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                {
+                    context.Fail("The token does not contain a valid user identifier.");
+                    return;
+                }
+
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var role = await db.Users
+                    .AsNoTracking()
+                    .Where(user => user.Id == userId)
+                    .Select(user => user.Role)
+                    .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                if (role is null || !principal.IsInRole(role))
+                    context.Fail("The token user no longer exists or their role has changed.");
+            },
             OnChallenge = async context =>
             {
                 context.HandleResponse();
@@ -97,14 +131,15 @@ builder.Services
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
-            NameClaimType = System.Security.Claims.ClaimTypes.Name,
-            RoleClaimType = System.Security.Claims.ClaimTypes.Role
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
         };
     });
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {

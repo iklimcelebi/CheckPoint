@@ -10,6 +10,7 @@ namespace CheckPoint.Api.Controllers;
 [ApiController]
 [Route("api/users")]
 [Authorize]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
 public class UsersController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -20,6 +21,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("me")]
+    [EndpointSummary("Giriş yapmış kullanıcının bilgilerini getirir")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken)
@@ -36,16 +38,16 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("me/resources")]
+    [EndpointSummary("Giriş yapmış kullanıcının yüklediği kaynakları listeler")]
     [ProducesResponseType(typeof(PagedResponse<ResourceResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResponse<ResourceResponse>>> MyResources(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = Pagination.DefaultPageSize,
         CancellationToken cancellationToken = default)
     {
-        if (page < 1 || pageSize < 1 || pageSize > 100)
-            return Problem(detail: "Sayfa en az 1, sayfa boyutu 1 ile 100 arasında olmalıdır.",
-                statusCode: StatusCodes.Status400BadRequest);
+        if (!Pagination.IsValid(page, pageSize))
+            return Problem(detail: Pagination.InvalidPagingMessage, statusCode: StatusCodes.Status400BadRequest);
 
         var userId = User.GetUserId();
         var query = _db.EducationalResources

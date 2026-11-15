@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using CheckPoint.Api.Data;
 using CheckPoint.Api.Dtos;
+using CheckPoint.Api.Extensions;
 using CheckPoint.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +12,7 @@ namespace CheckPoint.Api.Controllers;
 [ApiController]
 [Route("api/courses")]
 [Authorize]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
 public class CoursesController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -20,29 +23,45 @@ public class CoursesController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(List<CourseResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<CourseResponse>>> GetAll(
+    [EndpointSummary("Dersleri listeler")]
+    [EndpointDescription(
+        "Ada göre sıralı, sayfalı liste döner. universityId ile üniversiteye göre süzülür; " +
+        "q verilirse ders adı veya kodu içinde arar.")]
+    [ProducesResponseType(typeof(PagedResponse<CourseResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResponse<CourseResponse>>> GetAll(
         [FromQuery] int? universityId,
-        CancellationToken cancellationToken)
+        [FromQuery, StringLength(100, ErrorMessage = "Arama metni en fazla 100 karakter olabilir.")] string? q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Pagination.DefaultPageSize,
+        CancellationToken cancellationToken = default)
     {
+        if (!Pagination.IsValid(page, pageSize))
+            return Problem(detail: Pagination.InvalidPagingMessage, statusCode: StatusCodes.Status400BadRequest);
+
         var query = _db.Courses.AsNoTracking();
         if (universityId.HasValue)
             query = query.Where(course => course.UniversityId == universityId.Value);
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var search = q.Trim();
+            query = query.Where(course => course.Name.Contains(search) || course.Code.Contains(search));
+        }
 
-        var courses = await query
+        return await query
             .OrderBy(course => course.Name)
+            .ThenBy(course => course.Id)
             .Select(course => new CourseResponse(
                 course.Id,
                 course.Name,
                 course.Code,
                 course.UniversityId,
                 course.University!.Name))
-            .ToListAsync(cancellationToken);
-
-        return Ok(courses);
+            .ToPagedResponseAsync(page, pageSize, cancellationToken);
     }
 
     [HttpGet("{id:int}")]
+    [EndpointSummary("Ders ayrıntısını getirir")]
     [ProducesResponseType(typeof(CourseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CourseResponse>> GetById(int id, CancellationToken cancellationToken)
@@ -65,8 +84,10 @@ public class CoursesController : ControllerBase
     }
 
     [HttpPost]
+    [EndpointSummary("Ders ekler")]
+    [EndpointDescription("Ders kodu boşlukları kırpılıp büyük harfe çevrilir; aynı üniversitede tekrar eden kod 409 döner.")]
     [ProducesResponseType(typeof(CourseResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<CourseResponse>> Create(
         CourseRequest request,
@@ -112,7 +133,10 @@ public class CoursesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [EndpointSummary("Dersi günceller")]
+    [EndpointDescription("Sadece ad ve kod değişir; dersin üniversitesi değiştirilemez.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(

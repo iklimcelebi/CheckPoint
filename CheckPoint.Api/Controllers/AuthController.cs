@@ -26,7 +26,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EndpointSummary("Yeni kullanıcı kaydı oluşturur")]
+    [EndpointDescription("Kayıt olan herkes User rolünü alır; istekte rol alanı yoktur. E-posta küçük harfe çevrilerek saklanır.")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<UserResponse>> Register(
         RegisterRequest request,
@@ -61,7 +64,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EndpointSummary("Giriş yapar ve JWT döner")]
+    [EndpointDescription("Dönen token, korumalı isteklerde Authorization: Bearer <token> başlığıyla gönderilir.")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<LoginResponse>> Login(
         LoginRequest request,

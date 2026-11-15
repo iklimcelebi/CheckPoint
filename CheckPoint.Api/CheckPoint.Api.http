@@ -6,6 +6,11 @@ GET {{CheckPoint.Api_HostAddress}}/api/Universities
 Authorization: Bearer {{token}}
 Accept: application/json
 
+### Search and paginate universities
+GET {{CheckPoint.Api_HostAddress}}/api/Universities?q=Denizli&page=1&pageSize=10
+Authorization: Bearer {{token}}
+Accept: application/json
+
 ### Get an existing university
 GET {{CheckPoint.Api_HostAddress}}/api/Universities/1
 Authorization: Bearer {{token}}
@@ -67,6 +72,11 @@ Accept: application/json
 
 ### List courses for one university
 GET {{CheckPoint.Api_HostAddress}}/api/courses?universityId=1
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Search courses by name or code with pagination
+GET {{CheckPoint.Api_HostAddress}}/api/courses?universityId=1&q=BLG&page=1&pageSize=10
 Authorization: Bearer {{token}}
 Accept: application/json
 
