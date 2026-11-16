@@ -113,13 +113,14 @@ dotnet user-secrets set "SeedAdmin:Password" "<kendi-parolanız>" --project Chec
 
 Yönetici hesabı, uygulama ilk açıldığında veritabanında hiç Admin yoksa oluşturulur.
 
-### 3. Veritabanını oluşturun
+### 3. Derleyin ve veritabanını oluşturun
 
 ```powershell
+dotnet build
 dotnet ef database update --project CheckPoint.Api
 ```
 
-Bu komut `CheckPointDb` veritabanını LocalDB'de oluşturur ve tabloları kurar. (Alternatif: `dotnet user-secrets set "Database:AutoMigrate" "true" --project CheckPoint.Api` ayarıyla migration'lar uygulama açılırken otomatik uygulanır; yalnızca Development ortamında çalışır.)
+İlk komut NuGet paketlerini indirir ve projeyi derler; yeni klonlanmış bir depoda bu yapılmadan `dotnet ef` "project.assets.json not found" hatası verir. İkinci komut `CheckPointDb` veritabanını LocalDB'de oluşturur ve tabloları kurar. (Alternatif: `dotnet user-secrets set "Database:AutoMigrate" "true" --project CheckPoint.Api` ayarıyla migration'lar uygulama açılırken otomatik uygulanır; yalnızca Development ortamında çalışır.)
 
 ### 4. (İsteğe bağlı) Demo verisini açın
 
@@ -261,6 +262,7 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 | Uygulama açılmıyor: "Uygulama yapılandırması eksik veya geçersiz: Jwt:Key ..." | 2. adımdaki `Jwt:Key` komutunu çalıştırın. Komutu kök klasörde ve `--project CheckPoint.Api` ile verdiğinizden emin olun. |
 | "A network-related or instance-specific error ... LocalDB" | `sqllocaldb start MSSQLLocalDB` çalıştırın; `sqllocaldb info MSSQLLocalDB` ile durumu kontrol edin. |
 | Açılışta `Cannot open database "CheckPointDb" requested by the login`, veya kayıt/girişte "Sunucu hatası" | Veritabanı oluşturulmamış: 3. adımı (`dotnet ef database update --project CheckPoint.Api`) çalıştırın. |
+| `dotnet ef database update`: "Assets file ... project.assets.json not found" | Önce kök klasörde `dotnet build` çalıştırın (3. adım). |
 | `dotnet ef` bulunamadı | `dotnet tool install --global dotnet-ef --version 10.0.*`, ardından terminali yeniden açın. |
 | "The Entity Framework tools version ... is older" uyarısı | Zararsızdır; `dotnet tool update --global dotnet-ef --version 10.0.*` ile giderilir. |
 | Build hatası: "file is locked by: CheckPoint.Api" | API zaten çalışıyor. Çalıştığı terminalde `Ctrl+C` ile durdurup tekrar deneyin. |
