@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { ApiError } from './api/errors'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { AuthProvider } from './features/auth/AuthProvider'
 import './index.css'
 import { router } from './routes/router'
@@ -24,10 +25,12 @@ if (!root) throw new Error('Root element not found.')
 
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   </StrictMode>,
 )
