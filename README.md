@@ -1,261 +1,290 @@
-# CheckPoint API
+# CheckPoint
 
-CheckPoint is an API for students to share lecture notes, presentations, study questions, and past exam questions organized by university and course.
+CheckPoint, öğrencilerin üniversitelerine ve derslerine göre **ders notu, sunum, çalışma sorusu ve geçmiş sınav sorusu** paylaştığı bir eğitim kaynakları platformudur. Kullanıcılar kaynakları üniversite, ders, tür ve metinle arar; dosyaları indirir ve yeni kaynak yükler. Arayüz Türkçedir.
 
-## Requirements
+Proje bir ders ödevi olarak geliştirilmiştir ve **yerel bilgisayarda (Windows + SQL Server LocalDB)** çalışacak şekilde yapılandırılmıştır.
 
-- .NET 10 SDK (10.0.404 or a later 10.0 feature band; pinned in `global.json`)
-- SQL Server LocalDB
-- The `dotnet-ef` global tool, version 10: `dotnet tool update --global dotnet-ef --version 10.0.*`
+## İçindekiler
 
-## Setup
+- [Özellikler](#özellikler)
+- [Mimari](#mimari)
+- [Gereksinimler](#gereksinimler)
+- [Sıfırdan kurulum](#sıfırdan-kurulum)
+- [Demo hesapları](#demo-hesapları)
+- [Yapılandırma](#yapılandırma)
+- [API uç noktaları](#api-uç-noktaları)
+- [Dosya yükleme kuralları](#dosya-yükleme-kuralları)
+- [Testler](#testler)
+- [Güvenlik](#güvenlik)
+- [Sık karşılaşılan sorunlar](#sık-karşılaşılan-sorunlar)
+- [Bilinen sınırlamalar ve sonraki adımlar](#bilinen-sınırlamalar-ve-sonraki-adımlar)
 
-Run commands from the repository root.
+Sunum için adım adım senaryo: [docs/DEMO.md](docs/DEMO.md)
 
-1. Clone the repository and open `CheckPoint.Api`.
-2. Initialize user secrets if this is a fresh checkout:
+## Özellikler
 
-   ```powershell
-   dotnet user-secrets init --project .\CheckPoint.Api\CheckPoint.Api.csproj
-   ```
+- Kayıt, giriş, çıkış ve profil (JWT ile kimlik doğrulama, 60 dakikalık oturum).
+- Kaynak listesi: üniversite, ders, tür ve metin filtresi; sayfalama; filtreler adres çubuğunda saklanır.
+- Kaynak ayrıntısı ve indirme (Türkçe dosya adları korunur).
+- Kaynak yükleme (ilerleme çubuğuyla), düzenleme (başlık, açıklama, tür) ve silme.
+- "Benim Kaynaklarım" sayfası.
+- Üniversiteler (listeleme herkese; ekleme, düzenleme, silme yalnızca yöneticiye) ve dersler (herkes ekleyip düzenleyebilir).
+- Rol tabanlı yetki: `User` ve `Admin`. Bir kaynağı yalnızca yükleyen kişi veya yönetici düzenleyip silebilir.
+- Tüm hata mesajları Türkçe; arama Türkçe karakterlere duyarsızdır ("izmir" → "İzmir", "universite" → "Üniversite").
 
-   The project already has a `UserSecretsId`; initializing it again is unnecessary for an existing local checkout.
+## Mimari
 
-3. Configure a private JWT signing key and seed-admin credentials. Do not place these values in `appsettings.json` or commit them:
-
-   ```powershell
-   $bytes = New-Object byte[] 48
-   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-   $rng.GetBytes($bytes)
-   $jwtKey = [Convert]::ToBase64String($bytes)
-   dotnet user-secrets set "Jwt:Key" $jwtKey --project .\CheckPoint.Api\CheckPoint.Api.csproj
-
-   dotnet user-secrets set "SeedAdmin:Email" "admin@example.com" --project .\CheckPoint.Api\CheckPoint.Api.csproj
-   dotnet user-secrets set "SeedAdmin:Password" "<strong password of at least 8 characters>" --project .\CheckPoint.Api\CheckPoint.Api.csproj
-   ```
-
-   The generated key is 64 Base64 characters (48 cryptographically random bytes). The application requires a JWT key of at least 32 characters and stops at startup if it is missing or too short. Admin seeding is skipped unless both seed settings are supplied. The first configured admin is created when the application starts and no Admin already exists.
-
-4. Apply database migrations:
-
-   ```powershell
-   dotnet ef database update --project .\CheckPoint.Api\CheckPoint.Api.csproj
-   ```
-
-   Alternatively, set `Database:AutoMigrate` to `true` in `appsettings.Development.json` (or with `dotnet user-secrets set "Database:AutoMigrate" "true" ...`) to apply pending migrations at startup. This only works in the Development environment.
-
-5. Run the API:
-
-   ```powershell
-   dotnet run --project .\CheckPoint.Api\CheckPoint.Api.csproj
-   ```
-
-6. Open Swagger UI at [http://localhost:5118/swagger](http://localhost:5118/swagger). Use the **Authorize** button with a Bearer token returned by the login endpoint.
-
-To run over HTTPS locally, trust the development certificate once and use the `https` launch profile. HTTP requests are then redirected to `https://localhost:7237`:
-
-```powershell
-dotnet dev-certs https --trust
-dotnet run --project .\CheckPoint.Api\CheckPoint.Api.csproj --launch-profile https
+```
+┌──────────────────────────┐   HTTP + JSON (JWT)   ┌───────────────────────────┐       ┌──────────────────┐
+│ CheckPoint.Web           │ ────────────────────▶ │ CheckPoint.Api            │ ────▶ │ SQL Server       │
+│ React + TypeScript (Vite)│ ◀──────────────────── │ ASP.NET Core Web API      │       │ LocalDB          │
+│ http://localhost:5173    │   ProblemDetails      │ http://localhost:5118     │       │ CheckPointDb     │
+└──────────────────────────┘                       └─────────────┬─────────────┘       └──────────────────┘
+                                                                 │ dosyalar (GUID adıyla)
+                                                                 ▼
+                                                   CheckPoint.Api/uploads/
 ```
 
-With the default `http` profile no HTTPS port is known, so the startup log shows the warning `Failed to determine the https port for redirect` and requests are not redirected.
+| Klasör | İçerik |
+|---|---|
+| `CheckPoint.Api/` | .NET 10 Web API: `Controllers` (uç noktalar), `Dtos` (istek/yanıt modelleri ve doğrulama), `Models` + `Data` (EF Core, migration'lar, admin ve demo verisi), `Services` (dosya depolama), `Middleware`, `Filters`, `OpenApi` (Swagger) |
+| `CheckPoint.Api.Tests/` | xUnit entegrasyon testleri (her test kendi LocalDB veritabanını kullanır) |
+| `CheckPoint.Web/` | React 19 + TypeScript (strict) + Vite: `src/api` (tek fetch sarmalayıcısı, OpenAPI'den üretilmiş tipler), `src/features/*` (sayfalar), `src/components` (ortak bileşenler), `src/routes` (yönlendirme ve yetki korumaları), `src/lib` |
+| `CheckPoint.Web/e2e/` | Playwright uçtan uca testleri |
+| `docs/` | Sunum senaryosu |
 
-## Configuration
+**Teknolojiler:**
+- **Backend:** ASP.NET Core 10 (controller tabanlı), Entity Framework Core 10 (Code First, migration'lar), SQL Server LocalDB, JWT (HS256), BCrypt, Swagger UI.
+- **Frontend:** React 19, TypeScript, Vite 8, React Router, TanStack Query, react-hook-form, zod, Tailwind CSS.
+- **Testler:** xUnit, Vitest, React Testing Library, MSW, Playwright.
 
-Settings are layered: `appsettings.json` (shared defaults) → `appsettings.{Environment}.json` → user secrets (Development only) → environment variables → command-line arguments. Environment variables use `__` instead of `:`, for example `Jwt__Key` or `ConnectionStrings__DefaultConnection`.
+## Gereksinimler
 
-| Key | Secret? | Default / source | Description |
-|---|---|---|---|
-| `ConnectionStrings:DefaultConnection` | Yes in Production (may contain a password) | Development: LocalDB `CheckPointDb` in `appsettings.Development.json`; no default elsewhere | Database connection; required |
-| `Jwt:Key` | **Yes** | User secrets (Development); environment variable or key vault (Production) | HS256 signing key, at least 32 characters; required |
-| `Jwt:Issuer` | No | `CheckPoint.Api` | JWT issuer; required |
-| `Jwt:Audience` | No | `CheckPoint.Client` | JWT audience; required |
-| `Jwt:ExpiryMinutes` | No | `60` | Token lifetime in minutes; required, positive |
-| `SeedAdmin:Email` | Personal data | User secrets (Development); **environment variable only** in Production | Optional initial admin email |
-| `SeedAdmin:Password` | **Yes** | User secrets (Development); **environment variable only** in Production | Optional initial admin password |
-| `FileStorage:Provider` | No | `Local` | Storage implementation; only `Local` is supported today |
-| `FileStorage:RootPath` | No | `uploads` | Local storage root, relative to the API project unless absolute; required |
-| `FileStorage:MaxFileSizeMB` | No | `20` | Maximum upload size in MiB; required, positive |
-| `Kestrel:Limits:MaxRequestBodySize` | No | `1048576` (1 MiB) | Body size limit for every endpoint except uploads; uploads allow `MaxFileSizeMB` + 1 MiB |
-| `RateLimiting:Auth:PermitLimit` | No | `10` | Register/login requests allowed per client IP per window |
-| `RateLimiting:Auth:WindowSeconds` | No | `60` | Rate-limit window length in seconds |
-| `Cors:AllowedOrigins` | No | empty (Development: `http://localhost:5173`) | Browser origins allowed to call the API; empty means cross-origin calls are blocked |
-| `Database:AutoMigrate` | No | `false` | Apply pending migrations at startup; honored only in Development |
+| Araç | Sürüm | Kontrol komutu |
+|---|---|---|
+| Git | herhangi | `git --version` |
+| .NET SDK | **10.0** (10.0.404 veya daha yeni bir 10.0 sürümü) | `dotnet --list-sdks` → listede `10.0.` ile başlayan bir satır olmalı |
+| Entity Framework aracı | 10.x | `dotnet tool list -g` → `dotnet-ef` |
+| SQL Server LocalDB | 2019 veya daha yeni | `sqllocaldb info` → `MSSQLLocalDB` |
+| Node.js | 22 LTS veya 24 LTS (en az 20.19) | `node -v` |
 
-The application validates the required settings at startup and stops with one message listing every missing or invalid key.
+Eksik olanları kurmak için:
 
-Uploaded files are stored outside `wwwroot` and are not served as static files. The API saves files under a generated GUID filename; the original filename is sanitized and kept only as metadata. `CheckPoint.Api/uploads/` is ignored by Git.
+- .NET 10 SDK: `winget install Microsoft.DotNet.SDK.10` (veya https://dotnet.microsoft.com/download)
+- EF aracı: `dotnet tool install --global dotnet-ef --version 10.0.*` (kuruluysa `update` ile)
+- LocalDB: Visual Studio ile gelir; ayrıca "SQL Server Express LocalDB" olarak kurulabilir.
+- Node.js: `winget install OpenJS.NodeJS.LTS`
 
-Array settings such as `Cors:AllowedOrigins` are overridden by index, for example with the environment variables `Cors__AllowedOrigins__0=https://app.example.com` and `Cors__AllowedOrigins__1=https://www.example.com`. Each origin must be a full `http` or `https` origin without a path; wildcards (`*`) are rejected at startup.
+## Sıfırdan kurulum
 
-## Security notes
+Komutlar **PowerShell** içindir. Git Bash'te farklı olan tek komut ayrıca belirtilmiştir. Aksi yazmadıkça komutlar **depo kök klasöründe** (`CheckPoint`) çalıştırılır.
 
-### JWT signing key
-
-- Development: `Jwt:Key` lives in user secrets (see Setup).
-- Production: user secrets are not loaded outside Development. Provide the key through the host's secret store, for example the environment variable `Jwt__Key` set in the hosting platform's protected configuration, or a key vault (such as Azure Key Vault) added as a configuration provider. Never put the key in `appsettings*.json`, Docker images, or source control.
-- Use at least 32 random bytes encoded as Base64 (the setup command generates 48 bytes). The application refuses to start if the key is missing or shorter than 32 characters.
-- Tokens are validated with zero clock skew, so a token stops working exactly at `expiresAt`.
-
-### Rotating the JWT key
-
-The API validates tokens with a single key. Rotating it:
-
-1. Generate a new key with the same command used in Setup.
-2. Replace `Jwt:Key` (user secret, environment variable, or vault secret) and restart the application.
-3. Every token signed with the old key is rejected immediately with `401`; all users must sign in again. Plan rotations for a low-traffic window, or rotate immediately if the key may have leaked.
-
-A token is also rejected if its user no longer exists or the user's role changed after the token was issued.
-
-### Password policy
-
-New passwords (registration and `SeedAdmin:Password`) must be 8–64 characters long, contain at least one letter and one digit, and fit in 72 bytes of UTF-8. The byte limit exists because BCrypt ignores everything after 72 bytes; Turkish letters such as `ğ`, `ü`, and `ş` take 2 bytes each. Existing accounts are not affected, and sign-in does not apply the policy. An invalid `SeedAdmin:Password` stops the application at startup without printing the password.
-
-### Request protection
-
-- **Rate limiting:** `POST /api/auth/register` and `POST /api/auth/login` share a fixed-window limit per client IP. Exceeding it returns `429` with a `Retry-After` header. Behind a reverse proxy, forwarded headers must be configured so the real client IP is used; otherwise every client shares the proxy's limit.
-- **Security headers:** every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a restrictive `Content-Security-Policy` (`default-src 'none'`; Swagger UI in Development gets a policy that allows its own scripts and styles). `Strict-Transport-Security` is sent only in the Production environment and never for `localhost`.
-- **CORS:** only origins listed in `Cors:AllowedOrigins` may call the API from a browser, using `GET`, `POST`, `PUT`, `DELETE` with the `Authorization` and `Content-Type` headers. `Content-Disposition` and `Retry-After` are exposed so a frontend can read download file names and rate-limit delays.
-- **Request size:** non-upload requests are limited to 1 MiB; oversized bodies return `413`.
-
-### File handling
-
-- Downloads are served with the content type validated and stored at upload time, never the type the client claims later, and with `Content-Disposition: attachment` containing an ASCII fallback name plus an RFC 5987 UTF-8 `filename*`.
-- `IFileScanner` (`Services/IFileScanner.cs`) is called for every upload before the file is stored. The default `NoOpFileScanner` accepts every file. To add malware scanning (for example ClamAV or a cloud scanning service), implement the interface and register it in `Program.cs`. `Infected` returns `400`; `Unavailable` returns `503` and nothing is stored.
-
-## File storage
-
-`FileStorage:Provider` selects the storage implementation. Only `Local` is available today; any other value stops the application at startup. Cloud storage will be added behind the same `IFileStorageService` interface.
-
-### Error handling
-
-- Disk full while saving: `503` with "Depolama alanı dolu…". The partly written file is removed and no record is created.
-- Storage root missing, not writable, or otherwise failing: `503` with "Dosya depolama şu anda kullanılamıyor…". This applies to upload, download, and delete.
-- A record whose file is missing on disk returns `404` on download.
-
-### Keeping the database and files consistent
-
-- **Upload:** the file is written first, then the record is inserted. If the insert fails, the file is deleted.
-- **Delete:** the file is first renamed to `<name>.deleted`, then the record is deleted.
-  - If deleting the record fails, the file is renamed back, so both the record and the file stay as they were.
-  - If renaming fails because storage is unavailable, nothing is deleted and the API returns `503`.
-  - After the record is deleted, the `.deleted` file is removed.
-
-Residual cases, each requiring two independent failures in a row, are logged with the stored file name:
-
-| Case | Leftover | Log level | Fix |
-|---|---|---|---|
-| The insert fails after an upload, and deleting the new file also fails | An unreferenced file | `Error` | Safe to delete |
-| The record is deleted, but removing `<name>.deleted` fails | A `.deleted` file | `Warning` | Safe to delete |
-| Deleting the record fails, and renaming the file back also fails | A record whose file ends in `.deleted` | `Error` | Rename the file back by removing the `.deleted` suffix |
-
-### Backups (local storage)
-
-Back up the database and the `FileStorage:RootPath` folder together:
-
-1. Back up the database first (for example `BACKUP DATABASE`, or your host's automated backups).
-2. Then copy the storage folder, for example `robocopy <RootPath> <backup>\uploads /E` on Windows or `rsync -a <RootPath>/ <backup>/uploads/` on Linux.
-
-Stored files are never modified after upload; they are only added or removed. Taking the database backup first means every record in the backup has its file in the folder copy, unless the file was deleted between the two steps. Files added after the database backup are extra and harmless. Restore both from the same backup set. Skip `*.deleted` files when copying.
-
-| Environment | Swagger UI / OpenAPI | Auto-migrate | Seed admin source | Logs | HSTS |
-|---|---|---|---|---|---|
-| `Development` | `/swagger`, `/openapi/v1.json` | when `Database:AutoMigrate=true` | any configuration source (normally user secrets) | plain console | no |
-| `Production` | disabled (`404`) | never | environment variables `SeedAdmin__Email` and `SeedAdmin__Password` only; other sources are ignored with a warning | JSON console, UTC timestamps | yes |
-
-Set the environment with `ASPNETCORE_ENVIRONMENT`. `launchSettings.json` sets `Development` for local runs. Production-only settings live in `appsettings.Production.json`, which contains no secrets and no connection string.
-
-## Logging and health checks
-
-- Every request produces one log entry from `Microsoft.AspNetCore.HttpLogging.HttpLoggingMiddleware` with `Method`, `Path` (without the query string), `StatusCode`, `Duration` (ms), `TraceId`, and `UserId` when the caller is authenticated. Headers, query strings, and request/response bodies are never logged, so passwords, tokens, and e-mail addresses do not reach the logs. An automated test checks this.
-- Unhandled exceptions are logged once at `Error` level with the stack trace; clients get a generic `500` response. Rejected oversized or malformed requests are logged at `Warning`.
-- EF Core SQL command logs are reduced to `Warning`. SQL parameter values are never logged because sensitive data logging is off.
-- `GET /health` returns `200 Healthy` while the process is running (liveness).
-- `GET /health/ready` also checks that the database accepts connections, with a 5-second timeout, and returns `200 Healthy` or `503 Unhealthy` (readiness).
-- Both health endpoints are anonymous, return only the word `Healthy` or `Unhealthy`, and expose no version, connection, or error details.
-
-## Applying migrations in Production
-
-The application never migrates a non-Development database on startup. Generate an idempotent SQL script, review it, and apply it with an account that has schema-change rights:
+### 1. Depoyu klonlayın
 
 ```powershell
-dotnet ef migrations script --idempotent --project .\CheckPoint.Api\CheckPoint.Api.csproj -o .\artifacts\migrate.sql
-sqlcmd -S <server> -d <database> -U <user> -i .\artifacts\migrate.sql
+git clone https://github.com/iklimcelebi/CheckPoint.git
+cd CheckPoint
 ```
 
-The script checks `__EFMigrationsHistory` before each migration, so running it against a database that is already partly migrated applies only the missing steps. Back up the database before applying it. Generating the script does not connect to any database, but the tool starts the application in the Development environment, so `Jwt:Key` must be available, for example from user secrets or an environment variable.
+### 2. Sırları ayarlayın (user-secrets)
 
-## Endpoints
+Sırlar depoda **yoktur**; her geliştirici kendi bilgisayarında `dotnet user-secrets` ile ayarlar.
 
-All endpoints require a valid JWT unless the access column says otherwise. `User` and `Admin` are the supported roles.
+JWT imzalama anahtarı (48 rastgele bayt):
 
-| Method | Route | Access | Description |
+```powershell
+$bytes = New-Object byte[] 48
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+dotnet user-secrets set "Jwt:Key" ([Convert]::ToBase64String($bytes)) --project CheckPoint.Api
+```
+
+Git Bash kullanıyorsanız:
+
+```bash
+dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)" --project CheckPoint.Api
+```
+
+İlk yönetici (Admin) hesabı. E-postayı ve parolayı kendiniz belirleyin; parola **8–64 karakter olmalı, en az bir harf ve bir rakam içermelidir**:
+
+```powershell
+dotnet user-secrets set "SeedAdmin:Email" "admin@example.com" --project CheckPoint.Api
+dotnet user-secrets set "SeedAdmin:Password" "<kendi-parolanız>" --project CheckPoint.Api
+```
+
+Yönetici hesabı, uygulama ilk açıldığında veritabanında hiç Admin yoksa oluşturulur.
+
+### 3. Veritabanını oluşturun
+
+```powershell
+dotnet ef database update --project CheckPoint.Api
+```
+
+Bu komut `CheckPointDb` veritabanını LocalDB'de oluşturur ve tabloları kurar. (Alternatif: `dotnet user-secrets set "Database:AutoMigrate" "true" --project CheckPoint.Api` ayarıyla migration'lar uygulama açılırken otomatik uygulanır; yalnızca Development ortamında çalışır.)
+
+### 4. (İsteğe bağlı) Demo verisini açın
+
+```powershell
+dotnet user-secrets set "Seed:DemoData" "true" --project CheckPoint.Api
+```
+
+Uygulama açılışta 3 üniversite, 7 ders, 2 demo kullanıcı ve 7 örnek kaynak ekler (örnek dosyalar kod içinde üretilir, telifsizdir). Tekrar açıldığında kayıtlar çoğalmaz. Kapatmak için: `dotnet user-secrets remove "Seed:DemoData" --project CheckPoint.Api`.
+
+### 5. Backend'i çalıştırın (1. terminal)
+
+```powershell
+dotnet run --project CheckPoint.Api
+```
+
+Konsolda `Now listening on: http://localhost:5118` görünmelidir. Bu terminali açık bırakın.
+
+- Swagger (API belgesi ve deneme arayüzü): http://localhost:5118/swagger
+- Sağlık kontrolü: http://localhost:5118/health (uygulama), http://localhost:5118/health/ready (veritabanı dahil)
+
+### 6. Frontend'i çalıştırın (2. terminal)
+
+```powershell
+cd CheckPoint.Web
+npm install
+npm run dev
+```
+
+Tarayıcıda **http://localhost:5173** adresini açın. API farklı bir adreste çalışıyorsa `CheckPoint.Web/.env.example` dosyasını `.env` adıyla kopyalayıp `VITE_API_BASE_URL` değerini değiştirin.
+
+## Demo hesapları
+
+Yalnızca 4. adımdaki demo verisi açıksa vardır. **Bu parolalar yalnızca demo içindir.**
+
+| Rol | E-posta | Parola |
+|---|---|---|
+| User | `ayse.demo@example.com` | `DemoParola1` |
+| User | `mehmet.demo@example.com` | `DemoParola1` |
+| Admin | 2. adımda `SeedAdmin:Email` olarak belirlediğiniz e-posta | user-secrets'ta belirlediğiniz parola |
+
+## Yapılandırma
+
+Ayarlar şu sırayla birleştirilir (sonraki öncekini ezer): `appsettings.json` → `appsettings.Development.json` → user-secrets → ortam değişkenleri (`:` yerine `__`, ör. `Jwt__Key`).
+
+| Anahtar | Sır mı? | Varsayılan / kaynak | Açıklama |
 |---|---|---|---|
-| POST | `/api/auth/register` | Public | Register a User |
-| POST | `/api/auth/login` | Public | Sign in and receive a JWT |
-| GET | `/api/users/me` | User, Admin | Get the authenticated user's profile |
-| GET | `/api/users/me/resources` | User, Admin | Paginated resources uploaded by the authenticated user |
-| GET | `/api/Universities` | User, Admin | Paginated universities; optional `q` search on name or city |
-| GET | `/api/Universities/{id}` | User, Admin | Get a university |
-| POST | `/api/Universities` | Admin | Create a university |
-| PUT | `/api/Universities/{id}` | Admin | Update a university |
-| DELETE | `/api/Universities/{id}` | Admin | Delete a university without courses |
-| GET | `/api/courses` | User, Admin | Paginated courses; optional `universityId` filter and `q` search on name or code |
-| GET | `/api/courses/{id}` | User, Admin | Get a course |
-| POST | `/api/courses` | User, Admin | Create a course |
-| PUT | `/api/courses/{id}` | User, Admin | Update a course; university cannot be changed |
-| GET | `/api/resources` | User, Admin | List resources with optional filters and pagination |
-| GET | `/api/resources/{id}` | User, Admin | Get resource details |
-| GET | `/api/resources/{id}/download` | User, Admin | Download the file as an attachment |
-| POST | `/api/resources` | User, Admin | Upload a resource using `multipart/form-data` |
-| PUT | `/api/resources/{id}` | Owner, Admin | Update title, description, and type |
-| DELETE | `/api/resources/{id}` | Owner, Admin | Delete a resource and its stored file |
+| `Jwt:Key` | **Evet** | user-secrets | JWT imzalama anahtarı, en az 32 karakter. Eksikse uygulama açılmaz. |
+| `SeedAdmin:Email` | Kişisel veri | user-secrets | İlk yöneticinin e-postası (isteğe bağlı) |
+| `SeedAdmin:Password` | **Evet** | user-secrets | İlk yöneticinin parolası (isteğe bağlı) |
+| `ConnectionStrings:DefaultConnection` | Hayır (LocalDB, parolasız) | `appsettings.Development.json` | `(localdb)\MSSQLLocalDB`, veritabanı `CheckPointDb` |
+| `Jwt:Issuer` / `Jwt:Audience` / `Jwt:ExpiryMinutes` | Hayır | `CheckPoint.Api` / `CheckPoint.Client` / `60` | Token ayarları |
+| `FileStorage:RootPath` | Hayır | `uploads` | Dosyaların saklandığı klasör (`CheckPoint.Api/uploads`, Git'e girmez) |
+| `FileStorage:MaxFileSizeMB` | Hayır | `20` | En büyük dosya boyutu |
+| `Kestrel:Limits:MaxRequestBodySize` | Hayır | `1048576` (1 MB) | Yükleme dışındaki isteklerin gövde sınırı |
+| `RateLimiting:Auth:PermitLimit` / `WindowSeconds` | Hayır | `10` / `60` | Giriş ve kayıt için IP başına dakikada en fazla 10 istek |
+| `Cors:AllowedOrigins` | Hayır | Development: `http://localhost:5173` | Tarayıcıdan API'ye erişebilecek adresler |
+| `Database:AutoMigrate` | Hayır | `false` | `true` ise migration'lar açılışta uygulanır (yalnızca Development) |
+| `Seed:DemoData` | Hayır | `false` | `true` ise demo verisi eklenir (yalnızca Development) |
+| `VITE_API_BASE_URL` (frontend) | Hayır | `http://localhost:5118` | Frontend'in bağlandığı API adresi |
 
-All list endpoints (`/api/Universities`, `/api/courses`, `/api/resources`, `/api/users/me/resources`) return `{ items, page, pageSize, totalCount }` and accept `page` (default `1`) and `pageSize` (default `20`, maximum `100`). The `q` search text is limited to 100 characters. Universities and courses are ordered by name; resources by upload time, newest first.
+Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin hepsini tek bir Türkçe mesajda listeler.
 
-Resource listing accepts optional `universityId`, `courseId`, `type`, and `q` filters.
+## API uç noktaları
 
-A token is rejected with `401` if its user no longer exists or the user's role has changed since the token was issued; the user must sign in again.
+`register`, `login` ve sağlık kontrolleri dışındaki tüm uç noktalar `Authorization: Bearer <token>` başlığı ister. Token yoksa veya süresi dolmuşsa **401** döner. Ayrıntılı belge ve deneme için: http://localhost:5118/swagger
 
-## File upload rules
+| Yöntem | Adres | Yetki | Açıklama | Başlıca hata kodları |
+|---|---|---|---|---|
+| POST | `/api/auth/register` | Herkes | Kayıt (herkes `User` olur) | 400, 409, 429 |
+| POST | `/api/auth/login` | Herkes | Giriş → `{ token, expiresAt, user }` | 400, 401, 429 |
+| GET | `/api/users/me` | Giriş yapmış | Kendi bilgileri | 401 |
+| GET | `/api/users/me/resources` | Giriş yapmış | Kendi yüklediği kaynaklar (sayfalı) | 400 |
+| GET | `/api/universities?q=&page=&pageSize=` | Giriş yapmış | Üniversite listesi (sayfalı, arama) | 400 |
+| GET | `/api/universities/{id}` | Giriş yapmış | Üniversite ayrıntısı | 404 |
+| POST | `/api/universities` | **Admin** | Üniversite ekle | 400, 403, 409 |
+| PUT | `/api/universities/{id}` | **Admin** | Üniversite güncelle | 400, 403, 404, 409 |
+| DELETE | `/api/universities/{id}` | **Admin** | Üniversite sil (dersi varsa silinemez) | 403, 404, **409** |
+| GET | `/api/courses?universityId=&q=&page=&pageSize=` | Giriş yapmış | Ders listesi | 400 |
+| GET | `/api/courses/{id}` | Giriş yapmış | Ders ayrıntısı | 404 |
+| POST | `/api/courses` | Giriş yapmış | Ders ekle (kod büyük harfe çevrilir) | 400, 409 |
+| PUT | `/api/courses/{id}` | Giriş yapmış | Ders adı/kodu güncelle (üniversite değişmez) | 400, 404, 409 |
+| GET | `/api/resources?universityId=&courseId=&type=&q=&page=&pageSize=` | Giriş yapmış | Kaynak listesi (en yeni önce) | 400 |
+| GET | `/api/resources/{id}` | Giriş yapmış | Kaynak ayrıntısı | 404 |
+| GET | `/api/resources/{id}/download` | Giriş yapmış | Dosyayı indir | 404, 503 |
+| POST | `/api/resources` | Giriş yapmış | Kaynak yükle (`multipart/form-data`) | 400, **413**, **415**, 503 |
+| PUT | `/api/resources/{id}` | **Yükleyen veya Admin** | Başlık, açıklama, tür güncelle | 400, **403**, 404 |
+| DELETE | `/api/resources/{id}` | **Yükleyen veya Admin** | Kaynağı ve dosyasını sil | **403**, 404, 503 |
+| GET | `/health`, `/health/ready` | Herkes | Sağlık kontrolü (`Healthy` / `Unhealthy`) | 503 |
 
-- Accepted extensions: `.pdf`, `.doc`, `.docx`, `.ppt`, `.pptx`, `.txt`, `.png`, `.jpg`, and `.jpeg`.
-- The file extension and MIME content type must match.
-- Files larger than `FileStorage:MaxFileSizeMB` (20 MiB by default) are rejected.
-- Empty files are rejected.
-- PDF, PNG, JPG/JPEG, DOCX, and PPTX uploads are checked against their basic magic-byte signature.
-- Unsupported extensions or content types, and signature mismatches, return `415`; empty files return `400`; oversized files return `413`.
-- A course must belong to the selected university.
+- **Sayfalı listeler:** `{ items, page, pageSize, totalCount }` döner. Varsayılan `page=1`, `pageSize=20`, en fazla 100.
+- **Kaynak türleri:** `LectureNote` (Ders Notu), `Presentation` (Sunum), `StudyQuestion` (Çalışma Sorusu), `PastExamQuestion` (Geçmiş Sınav Sorusu).
+- **Hata yanıtları** [ProblemDetails](https://www.rfc-editor.org/rfc/rfc9457) biçimindedir ve Türkçedir:
 
-## Verification checklist
+```json
+{
+  "title": "Çakışma",
+  "status": 409,
+  "detail": "Bu üniversiteye bağlı dersler olduğu için silinemez."
+}
+```
 
-Use Swagger at `http://localhost:5118/swagger`. Register two normal users and sign in to obtain tokens. An Admin token is available only after configuring the seed-admin secrets and starting the application. Include a valid `Authorization: Bearer <token>` header for protected endpoints.
+## Dosya yükleme kuralları
 
-### Successful scenarios
+- İzin verilen uzantılar: `.pdf .doc .docx .ppt .pptx .txt .png .jpg .jpeg`
+- En büyük boyut: **20 MB** → aşılırsa **413**.
+- Boş dosya → **400**.
+- Uzantı, içerik türü (Content-Type) ve dosyanın ilk baytları (PDF, PNG, JPG, DOCX, PPTX imzası) birbiriyle uyuşmalıdır; aksi hâlde **415** (ör. `.pdf` uzantılı bir metin dosyası reddedilir).
+- Seçilen ders, seçilen üniversiteye ait olmalıdır → aksi hâlde **400**.
+- Dosyalar diske rastgele (GUID) bir adla kaydedilir; kullanıcının verdiği ad yalnızca indirmede kullanılır ve temizlenir. `uploads` klasörü doğrudan web'e açık değildir; indirme yalnızca yetkili API isteğiyle yapılır.
+- Arayüz aynı kuralları göndermeden önce de denetler; asıl denetim sunucudadır.
 
-- Register a new user: `POST /api/auth/register` returns `201`.
-- Login with correct credentials: `POST /api/auth/login` returns `200`.
-- Read the current profile/resources: `GET /api/users/me` and `GET /api/users/me/resources` return `200`.
-- Read universities and courses with a token: GET endpoints return `200`.
-- Create a course for an existing university: `POST /api/courses` returns `201`; duplicate course codes are compared after trimming and uppercasing.
-- Upload an allowed, non-empty file with matching MIME type and valid university/course: `POST /api/resources` returns `201`.
-- Filter and paginate resources: `GET /api/resources` returns `200` with `items`, `page`, `pageSize`, and `totalCount`.
-- Download an existing file: `GET /api/resources/{id}/download` returns `200`, attachment disposition, and `X-Content-Type-Options: nosniff`.
-- Update/delete a resource as its owner: PUT returns `204`; DELETE returns `204` and removes the file.
-- Update/delete another user's resource as Admin: PUT returns `204`; DELETE returns `204`.
-- Create, update, and delete a university as Admin: returns `201`, `204`, and `204` respectively.
+## Testler
 
-### Error scenarios
+| Test | Komut (klasör) | Ne test eder | Sayı |
+|---|---|---|---|
+| Backend | `dotnet test CheckPoint.sln` (kök) | Tüm uç noktalar, yetkiler, doğrulama, dosya kuralları, hız sınırı, Türkçe arama, demo verisi | 216 |
+| Frontend birim/bileşen | `npm test` (`CheckPoint.Web`) | Formlar, korumalı rotalar, filtreler, yükleme doğrulamaları, rol bazlı düğmeler | 62 |
+| Uçtan uca | `npm run test:e2e` (`CheckPoint.Web`) | Gerçek API + tarayıcı: kayıt → giriş → üniversite → ders → yükleme → arama → indirme → düzenleme → silme; başkasının kaynağına 403; hata ekranları | 4 |
 
-- Call a protected endpoint without a token: `401` with Problem Details.
-- Attempt a User-only forbidden university mutation: `403` with Problem Details.
-- Attempt to update/delete another user's resource as a different User: `403`.
-- Register an existing username/email or create a duplicate university/course code: `409`.
-- Submit invalid model data, a nonexistent university for a course, mismatched course/university, or invalid paging: `400`.
-- Request a nonexistent university, course, or resource, or download a resource whose file is missing: `404`.
-- Upload an empty file: `400`; upload a file larger than the configured limit: `413`.
-- Upload an unsupported extension/MIME type or a file with a mismatched signature: `415`.
-- Cause an unexpected server error in a controlled development test: `500` with a generic Problem Details response and no internal exception details.
+- Backend testleri ve uçtan uca testler kendi geçici LocalDB veritabanlarını oluşturur ve sonunda siler; `CheckPointDb`'ye dokunmaz.
+- Uçtan uca testler user-secrets gerektirmez (anahtar ve admin parolası her çalıştırmada rastgele üretilir). Çalıştığınız API (5118) açık olsa bile 5199 ve 5174 portlarını kullanır.
+- Uçtan uca testlerden önce bir kez tarayıcıyı indirin: `npx playwright install chromium`.
+- Kod kalitesi: `npm run lint` (0 uyarı), `npm run build`.
 
-The request examples in [CheckPoint.Api.http](./CheckPoint.Api/CheckPoint.Api.http) provide a manual test starting point.
+## Güvenlik
+
+- **Parolalar:** BCrypt ile saklanır. Parola kuralı: 8–64 karakter, en az bir harf ve bir rakam, en fazla 72 bayt (BCrypt sınırı).
+- **Token'lar:** JWT 60 dakika geçerlidir ve tarayıcıda `localStorage`'da tutulur; süre dolunca kullanıcı giriş sayfasına yönlendirilir. Kullanıcı silinirse veya rolü değişirse eski token hemen geçersizleşir.
+- **Kaba kuvvet koruması:** Giriş ve kayıt IP başına dakikada 10 istekle sınırlıdır; aşılırsa **429** ve `Retry-After` döner.
+- **Güvenlik başlıkları:** `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy`.
+- **CORS:** Yalnızca `Cors:AllowedOrigins` listesindeki adresler.
+- **Günlükler:** Her istek tek satır olarak (yöntem, yol, durum, süre, kullanıcı kimliği) kaydedilir; parola, token, e-posta ve sorgu metni günlüğe yazılmaz.
+- **Sırlar:** Repoda gerçek sır yoktur. `Jwt:Key` değiştirilirse eski token'ların hepsi geçersiz olur ve herkes yeniden giriş yapmalıdır.
+
+## Sık karşılaşılan sorunlar
+
+| Belirti | Çözüm |
+|---|---|
+| Uygulama açılmıyor: "Uygulama yapılandırması eksik veya geçersiz: Jwt:Key ..." | 2. adımdaki `Jwt:Key` komutunu çalıştırın. Komutu kök klasörde ve `--project CheckPoint.Api` ile verdiğinizden emin olun. |
+| "A network-related or instance-specific error ... LocalDB" | `sqllocaldb start MSSQLLocalDB` çalıştırın; `sqllocaldb info MSSQLLocalDB` ile durumu kontrol edin. |
+| Açılışta `Cannot open database "CheckPointDb" requested by the login`, veya kayıt/girişte "Sunucu hatası" | Veritabanı oluşturulmamış: 3. adımı (`dotnet ef database update --project CheckPoint.Api`) çalıştırın. |
+| `dotnet ef` bulunamadı | `dotnet tool install --global dotnet-ef --version 10.0.*`, ardından terminali yeniden açın. |
+| "The Entity Framework tools version ... is older" uyarısı | Zararsızdır; `dotnet tool update --global dotnet-ef --version 10.0.*` ile giderilir. |
+| Build hatası: "file is locked by: CheckPoint.Api" | API zaten çalışıyor. Çalıştığı terminalde `Ctrl+C` ile durdurup tekrar deneyin. |
+| "Failed to bind to address ... address already in use" | 5118 veya 5173 portunu başka bir uygulama kullanıyor; o uygulamayı kapatın. |
+| Arayüzde "Sunucuya ulaşılamadı" | Backend çalışmıyor veya farklı adreste. 1. terminali kontrol edin; gerekirse `.env` içinde `VITE_API_BASE_URL` ayarlayın. |
+| Tarayıcı konsolunda CORS hatası | Frontend'i 5173 dışında bir portta açtıysanız o adresi `Cors:AllowedOrigins` listesine ekleyin. |
+| `npm install` "ENOENT package.json" | Komutu `CheckPoint.Web` klasöründe çalıştırın. Kök klasörde yanlışlıkla oluşan `package-lock.json` dosyasını silin. |
+| Giriş: "Çok fazla deneme yaptınız" (429) | Bir dakika bekleyin (IP başına dakikada 10 deneme). |
+| Demo hesaplarıyla giriş yapılamıyor | 4. adımda demo verisini açıp API'yi yeniden başlatın; konsolda `Demo data: ...` satırı görünmelidir. |
+| Admin hesabıyla giriş yapılamıyor | Admin yalnızca veritabanında hiç Admin yokken oluşturulur. user-secrets'taki parolayı sonradan değiştirdiyseniz veritabanındaki hesap eski parolayla kalır. |
+| `npm run test:e2e`: "Executable doesn't exist" | `npx playwright install chromium` çalıştırın. |
+
+## Bilinen sınırlamalar ve sonraki adımlar
+
+**Bu sürümde bilinçli olarak yer almayanlar:**
+
+- Yenileme token'ı (refresh token) yok; 60 dakika sonra yeniden giriş gerekir.
+- E-posta doğrulama ve parola sıfırlama yok.
+- Kullanıcıları listeleme, devre dışı bırakma veya silme için arayüz ve uç nokta yok.
+- Ders silme yok; dersi olan üniversite silinemez.
+- Dosya ve dersi değiştirmek için kaynağın silinip yeniden yüklenmesi gerekir.
+- Dosyalar yerel diskte tutulur (bulut depolama yok). Virüs taraması için bir genişleme noktası (`IFileScanner`) vardır, ancak tarayıcı bağlı değildir.
+- Hız sınırı ve oturum durumu tek sunucu içindir; uygulama canlı ortama dağıtılmak üzere yapılandırılmamıştır (Production ayarları, HTTPS sertifikası, Docker yoktur).
+- Açılır listeler en fazla 100 üniversite/ders gösterir.
+- Yalnızca Windows + LocalDB üzerinde test edilmiştir.
+
+**Olası sonraki sürüm özellikleri:** refresh token, e-posta doğrulama ve parola sıfırlama, içerik moderasyonu ve kaynak şikâyeti, beğeni/yorum ve puanlama, yönetici için kullanıcı yönetimi, ders silme, bulut depolama ve canlı ortam dağıtımı.
