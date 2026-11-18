@@ -3,6 +3,7 @@ using CheckPoint.Api.Data;
 using CheckPoint.Api.Dtos;
 using CheckPoint.Api.Extensions;
 using CheckPoint.Api.Models;
+using CheckPoint.Api.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +49,7 @@ public class UniversitiesController : ControllerBase
         return await query
             .OrderBy(u => u.Name)
             .ThenBy(u => u.Id)
-            .Select(u => new UniversityResponse(u.Id, u.Name, u.City))
+            .Select(u => new UniversityResponse(u.Id, u.Name, u.City, u.Resources.Count))
             .ToPagedResponseAsync(page, pageSize, cancellationToken);
     }
 
@@ -60,11 +61,13 @@ public class UniversitiesController : ControllerBase
     {
         var university = await _db.Universities
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+            .Where(u => u.Id == id)
+            .Select(u => new UniversityResponse(u.Id, u.Name, u.City, u.Resources.Count))
+            .FirstOrDefaultAsync(cancellationToken);
         if (university is null)
             return Problem(detail: "Üniversite bulunamadı.", statusCode: StatusCodes.Status404NotFound);
 
-        return new UniversityResponse(university.Id, university.Name, university.City);
+        return university;
     }
 
     [HttpPost]
@@ -82,12 +85,12 @@ public class UniversitiesController : ControllerBase
         if (await _db.Universities.AnyAsync(u => u.Name == name, cancellationToken))
             return Problem(detail: "Bu isimde bir üniversite zaten var.", statusCode: StatusCodes.Status409Conflict);
 
-        var university = new University { Name = name, City = request.City.Trim() };
+        var university = new University { Name = name, City = TurkishProvinces.Normalize(request.City)! };
         _db.Universities.Add(university);
         await _db.SaveChangesAsync(cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = university.Id },
-            new UniversityResponse(university.Id, university.Name, university.City));
+            new UniversityResponse(university.Id, university.Name, university.City, 0));
     }
 
     [HttpPut("{id:int}")]
@@ -112,7 +115,7 @@ public class UniversitiesController : ControllerBase
             return Problem(detail: "Bu isimde bir üniversite zaten var.", statusCode: StatusCodes.Status409Conflict);
 
         university.Name = name;
-        university.City = request.City.Trim();
+        university.City = TurkishProvinces.Normalize(request.City)!;
         await _db.SaveChangesAsync(cancellationToken);
 
         return NoContent();

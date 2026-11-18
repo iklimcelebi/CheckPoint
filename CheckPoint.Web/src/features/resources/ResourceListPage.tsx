@@ -77,7 +77,7 @@ export function ResourceListPage() {
   })
 
   return (
-    <Page title="Kaynaklar" description="Üniversite, ders ve türe göre paylaşılan kaynaklar.">
+    <Page title="Kaynaklar" description="Üniversite, ders ve türe göre filtreleyebilirsiniz.">
       {notice && <Alert tone="success">{notice}</Alert>}
 
       <section

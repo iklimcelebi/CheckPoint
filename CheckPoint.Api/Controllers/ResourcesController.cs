@@ -93,11 +93,12 @@ public class ResourcesController : ControllerBase
                     EF.Functions.Collate(resource.Description, SearchCollation.CaseAndAccentInsensitive).Contains(search)));
         }
 
-        return Ok(await ToPagedResponseAsync(query, page, pageSize, cancellationToken));
+        return Ok(await ToPagedResponseAsync(query, page, pageSize, User.GetUserId(), cancellationToken));
     }
 
     [HttpGet("{id:int}")]
     [EndpointSummary("Kaynak ayrıntısını getirir")]
+    [EndpointDescription("Görüntülenme sayısını değiştirmez; sayaç POST /api/resources/{id}/view ile artırılır.")]
     [ProducesResponseType(typeof(ResourceResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ResourceResponse>> GetById(int id, CancellationToken cancellationToken)
@@ -105,13 +106,31 @@ public class ResourcesController : ControllerBase
         var resource = await _db.EducationalResources
             .AsNoTracking()
             .Where(candidate => candidate.Id == id)
-            .Select(ResourceProjection())
+            .Select(ResourceProjection(User.GetUserId()))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (resource is null)
             return Problem(detail: "Kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound);
 
         return Ok(resource);
+    }
+
+    [HttpPost("{id:int}/view")]
+    [EndpointSummary("Kaynağın görüntülenme sayısını bir artırır")]
+    [EndpointDescription("Kaynak ayrıntı sayfası açıldığında bir kez çağrılır; popüler dersler bu sayıya göre sıralanır.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RecordView(int id, CancellationToken cancellationToken)
+    {
+        var updated = await _db.EducationalResources
+            .Where(candidate => candidate.Id == id)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(candidate => candidate.ViewCount, candidate => candidate.ViewCount + 1),
+                cancellationToken);
+
+        return updated == 0
+            ? Problem(detail: "Kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound)
+            : NoContent();
     }
 
     [HttpPost]
@@ -244,7 +263,9 @@ public class ResourcesController : ControllerBase
             resource.OriginalFileName,
             resource.FileSize,
             new ResourceUploaderResponse(resource.UploadedByUserId, User.Identity?.Name ?? string.Empty),
-            resource.UploadedAt);
+            resource.UploadedAt,
+            resource.ViewCount,
+            false);
 
         return Created($"/api/resources/{resource.Id}", response);
     }
@@ -377,6 +398,54 @@ public class ResourcesController : ControllerBase
         }
     }
 
+    [HttpPut("{id:int}/favorite")]
+    [EndpointSummary("Kaynağı favorilere ekler")]
+    [EndpointDescription("Zaten favorideyse bir şey değişmez.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddFavorite(int id, CancellationToken cancellationToken)
+    {
+        if (!await _db.EducationalResources.AnyAsync(resource => resource.Id == id, cancellationToken))
+            return Problem(detail: "Kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound);
+
+        var userId = User.GetUserId();
+        if (await _db.Favorites.AnyAsync(f => f.UserId == userId && f.ResourceId == id, cancellationToken))
+            return NoContent();
+
+        _db.Favorites.Add(new Favorite { UserId = userId, ResourceId = id, CreatedAt = DateTimeOffset.UtcNow });
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            var alreadyAdded = await _db.Favorites
+                .AsNoTracking()
+                .AnyAsync(f => f.UserId == userId && f.ResourceId == id, CancellationToken.None);
+            if (!alreadyAdded)
+                throw;
+        }
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}/favorite")]
+    [EndpointSummary("Kaynağı favorilerden çıkarır")]
+    [EndpointDescription("Favoride değilse bir şey değişmez.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveFavorite(int id, CancellationToken cancellationToken)
+    {
+        if (!await _db.EducationalResources.AnyAsync(resource => resource.Id == id, cancellationToken))
+            return Problem(detail: "Kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound);
+
+        var userId = User.GetUserId();
+        await _db.Favorites
+            .Where(f => f.UserId == userId && f.ResourceId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+        return NoContent();
+    }
+
     private bool CanManage(EducationalResource resource) =>
         User.IsInRole("Admin") || resource.UploadedByUserId == User.GetUserId();
 
@@ -384,11 +453,12 @@ public class ResourcesController : ControllerBase
         IQueryable<EducationalResource> query,
         int page,
         int pageSize,
+        int currentUserId,
         CancellationToken cancellationToken) =>
         query
             .OrderByDescending(resource => resource.UploadedAt)
             .ThenByDescending(resource => resource.Id)
-            .Select(ResourceProjection())
+            .Select(ResourceProjection(currentUserId))
             .ToPagedResponseAsync(page, pageSize, cancellationToken);
 
     internal static string? SanitizeFileName(string? fileName)
@@ -413,7 +483,7 @@ public class ResourcesController : ControllerBase
         return sanitized;
     }
 
-    internal static Expression<Func<EducationalResource, ResourceResponse>> ResourceProjection() =>
+    internal static Expression<Func<EducationalResource, ResourceResponse>> ResourceProjection(int currentUserId) =>
         resource => new ResourceResponse(
             resource.Id,
             resource.Title,
@@ -424,7 +494,9 @@ public class ResourcesController : ControllerBase
             resource.OriginalFileName,
             resource.FileSize,
             new ResourceUploaderResponse(resource.UploadedByUserId, resource.UploadedByUser!.Username),
-            resource.UploadedAt);
+            resource.UploadedAt,
+            resource.ViewCount,
+            resource.Favorites.Any(favorite => favorite.UserId == currentUserId));
 
     private static async Task<bool> HasValidSignatureAsync(
         Stream stream,

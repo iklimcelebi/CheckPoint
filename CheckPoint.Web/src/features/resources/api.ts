@@ -16,6 +16,8 @@ export const resourceKeys = {
   list: (filters: ResourceFilters) => ['resources', 'list', filters] as const,
   detail: (id: number) => ['resources', 'detail', id] as const,
   mine: (page: number) => ['resources', 'mine', page] as const,
+  favorites: (page: number) => ['resources', 'favorites', page] as const,
+  latest: ['resources', 'latest'] as const,
 }
 
 export function fetchResources(filters: ResourceFilters, signal?: AbortSignal) {
@@ -66,4 +68,19 @@ export function createResource(resource: NewResource, onProgress?: (percent: num
 
 export function updateResource(id: number, body: UpdateResourceRequest) {
   return apiRequest<void>(`/api/resources/${id}`, { method: 'PUT', json: body })
+}
+
+export function fetchFavorites(page: number, signal?: AbortSignal) {
+  return apiRequest<PagedResponse<Resource>>('/api/users/me/favorites', {
+    query: { page, pageSize: RESOURCE_PAGE_SIZE },
+    signal,
+  })
+}
+
+export function setFavorite(id: number, favorite: boolean) {
+  return apiRequest<void>(`/api/resources/${id}/favorite`, { method: favorite ? 'PUT' : 'DELETE' })
+}
+
+export function recordView(id: number) {
+  return apiRequest<void>(`/api/resources/${id}/view`, { method: 'POST' })
 }

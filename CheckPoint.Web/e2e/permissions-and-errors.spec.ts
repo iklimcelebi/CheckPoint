@@ -7,6 +7,7 @@ import {
   apiToken,
   apiUpload,
   login,
+  navLink,
   newUser,
   register,
   uniqueSuffix,
@@ -69,7 +70,7 @@ test('shows Turkish error messages for 401, 409, 415 and 404', async ({ page, re
 
   const catalog = await apiCreateCatalog(request)
   await login(page, student.email, student.password)
-  await page.getByRole('link', { name: 'Yükle', exact: true }).click()
+  await navLink(page, 'Kaynak Yükle').click()
   await page.getByLabel('Başlık').fill('Sahte PDF')
   await page
     .getByLabel('Üniversite', { exact: true })
@@ -94,12 +95,31 @@ test('admin sees a 409 when deleting a university that has courses', async ({ pa
   const catalog = await apiCreateCatalog(request)
   expect(await apiToken(request, admin.email, admin.password)).toBeTruthy()
   await login(page, admin.email, admin.password)
-  await page.getByRole('link', { name: 'Üniversiteler' }).click()
-  await page.getByLabel('Ara').fill(catalog.universityName)
+  await navLink(page, 'Üniversiteler').click()
+  await page.getByLabel('Ara', { exact: true }).fill(catalog.universityName)
   await page.getByRole('button', { name: `${catalog.universityName} sil` }).click()
   const dialog = page.getByRole('dialog', { name: 'Üniversiteyi sil' })
   await dialog.getByRole('button', { name: 'Sil' }).click()
   await expect(dialog.getByRole('alert')).toHaveText(
     'Bu üniversiteye bağlı dersler olduğu için silinemez.',
   )
+})
+
+test('admin deletes a user account from the admin page', async ({ page, request }) => {
+  const victim = newUser('silinecek')
+  await apiRegister(request, victim)
+  await login(page, admin.email, admin.password)
+  await navLink(page, 'Yönetim').click()
+  await page.getByLabel('Kullanıcı ara').fill(victim.username)
+  await page.getByRole('button', { name: `${victim.username} hesabını sil` }).click()
+  await page
+    .getByRole('dialog', { name: 'Hesabı sil' })
+    .getByRole('button', { name: 'Hesabı sil' })
+    .click()
+  await expect(page.getByText(`"${victim.username}" hesabı silindi.`)).toBeVisible()
+
+  const response = await request.post(`${API_URL}/api/auth/login`, {
+    data: { email: victim.email, password: victim.password },
+  })
+  expect(response.status()).toBe(401)
 })

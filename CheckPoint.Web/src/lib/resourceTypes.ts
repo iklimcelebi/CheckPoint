@@ -15,10 +15,10 @@ export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
 }
 
 export const RESOURCE_TYPE_BADGE_CLASSES: Record<ResourceType, string> = {
-  LectureNote: 'bg-blue-50 text-blue-800 ring-blue-200',
-  Presentation: 'bg-violet-50 text-violet-800 ring-violet-200',
-  StudyQuestion: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  PastExamQuestion: 'bg-amber-50 text-amber-800 ring-amber-200',
+  LectureNote: 'bg-peach text-slate-900 ring-tangerine/50',
+  Presentation: 'bg-blush text-slate-900 ring-blush',
+  StudyQuestion: 'bg-white text-accent ring-tangerine',
+  PastExamQuestion: 'bg-tangerine text-slate-900 ring-tangerine',
 }
 
 export function isResourceType(value: string | null | undefined): value is ResourceType {

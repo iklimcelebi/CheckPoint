@@ -11,14 +11,15 @@ import { formatDateTime, formatFileSize } from '../../lib/format'
 import { parsePositiveInt } from '../../lib/params'
 import { fetchResource, resourceKeys } from './api'
 import { DeleteResourceButton } from './DeleteResourceButton'
-import { useCanManage, useDownloadResource } from './hooks'
+import { FavoriteButton } from './FavoriteButton'
+import { useCanManage, useDownloadResource, useRecordView } from './hooks'
 import { ResourceTypeBadge } from './ResourceTypeBadge'
 
 function NotFound() {
   return (
     <Page title="Kaynak bulunamadı">
       <EmptyState title="Bu kaynak bulunamadı veya silinmiş olabilir.">
-        <Link to="/kaynaklar" className="font-medium text-blue-700 hover:underline">
+        <Link to="/kaynaklar" className="font-medium text-accent hover:underline">
           Kaynaklara dön
         </Link>
       </EmptyState>
@@ -39,6 +40,7 @@ export function ResourceDetailPage() {
   })
   const resource = query.data
   const canManage = useCanManage(resource)
+  useRecordView(resource?.id)
 
   if (resourceId === undefined) return <NotFound />
   if (query.isPending) return <LoadingState label="Kaynak yükleniyor…" />
@@ -65,6 +67,7 @@ export function ResourceDetailPage() {
     ],
     ['Dosya', `${resource.originalFileName} (${formatFileSize(resource.fileSize)})`],
     ['Yükleyen', resource.uploadedBy.username],
+    ['Görüntülenme', `${resource.viewCount} kez`],
     [
       'Yüklenme tarihi',
       <time key="date" dateTime={resource.uploadedAt}>
@@ -85,6 +88,7 @@ export function ResourceDetailPage() {
           >
             İndir
           </Button>
+          <FavoriteButton resource={resource} showLabel />
           {canManage && (
             <>
               <Link to={`/kaynaklar/${resource.id}/duzenle`} className={buttonClasses('secondary')}>
@@ -116,7 +120,7 @@ export function ResourceDetailPage() {
       </dl>
       <Link
         to="/kaynaklar"
-        className="inline-block text-sm font-medium text-blue-700 hover:underline"
+        className="inline-block text-sm font-medium text-accent hover:underline"
       >
         ← Kaynaklara dön
       </Link>

@@ -21,15 +21,7 @@ export function MyResourcesPage() {
   })
 
   return (
-    <Page
-      title="Benim Kaynaklarım"
-      description="Yüklediğiniz kaynaklar."
-      actions={
-        <Link to="/yukle" className={buttonClasses('primary')}>
-          Kaynak yükle
-        </Link>
-      }
-    >
+    <Page title="Kaynaklarım" description="Yüklediğiniz kaynaklar.">
       {query.isPending ? (
         <LoadingState label="Kaynaklarınız yükleniyor…" />
       ) : query.error ? (
@@ -40,14 +32,14 @@ export function MyResourcesPage() {
             <button
               type="button"
               onClick={() => goToPage(1)}
-              className="font-medium text-blue-700 hover:underline"
+              className="font-medium text-accent hover:underline"
             >
               İlk sayfaya dön
             </button>
           </EmptyState>
         ) : (
           <EmptyState title="Henüz kaynak yüklemediniz.">
-            <Link to="/yukle" className="font-medium text-blue-700 hover:underline">
+            <Link to="/yukle" className="font-medium text-accent hover:underline">
               İlk kaynağınızı yükleyin
             </Link>
           </EmptyState>

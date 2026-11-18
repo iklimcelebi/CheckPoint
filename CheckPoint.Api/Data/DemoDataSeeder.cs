@@ -15,24 +15,58 @@ public static class DemoDataSeeder
         [
             new("BLG201", "Veri Yapıları"),
             new("BLG301", "Veritabanı Yönetim Sistemleri"),
-            new("MAT101", "Matematik I")
+            new("MAT101", "Matematik I"),
+            new("BLG311", "İşletim Sistemleri")
         ]),
         new("Ege Üniversitesi", "İzmir",
         [
             new("BIL105", "Programlamaya Giriş"),
-            new("BIL204", "Algoritma Analizi")
+            new("BIL204", "Algoritma Analizi"),
+            new("BIL302", "Bilgisayar Ağları")
         ]),
         new("Orta Doğu Teknik Üniversitesi", "Ankara",
         [
             new("CENG242", "Programlama Dilleri"),
-            new("MATH119", "Kalkülüs I")
+            new("MATH119", "Kalkülüs I"),
+            new("PHYS105", "Fizik I")
+        ]),
+        new("İstanbul Teknik Üniversitesi", "İstanbul",
+        [
+            new("BLG252E", "Nesneye Dayalı Programlama"),
+            new("MAT281E", "Lineer Cebir"),
+            new("EHB211E", "Elektrik Devreleri I")
+        ]),
+        new("Hacettepe Üniversitesi", "Ankara",
+        [
+            new("BBM101", "Bilgisayar Mühendisliğine Giriş"),
+            new("BBM371", "Veri Yönetimi"),
+            new("IST201", "Olasılık ve İstatistik")
+        ]),
+        new("Dokuz Eylül Üniversitesi", "İzmir",
+        [
+            new("CME2201", "Ayrık Matematik"),
+            new("CME3201", "Yazılım Mühendisliği")
+        ]),
+        new("Boğaziçi Üniversitesi", "İstanbul",
+        [
+            new("CMPE150", "Programlamaya Giriş"),
+            new("EC101", "İktisada Giriş")
+        ]),
+        new("Karadeniz Teknik Üniversitesi", "Trabzon",
+        [
+            new("BIL1001", "Bilgisayar Bilimlerine Giriş"),
+            new("MAT1011", "Analiz I")
         ])
     ];
 
     private static readonly DemoUser[] Users =
     [
         new("ayse_demo", "ayse.demo@example.com"),
-        new("mehmet_demo", "mehmet.demo@example.com")
+        new("mehmet_demo", "mehmet.demo@example.com"),
+        new("zeynep_demo", "zeynep.demo@example.com"),
+        new("ali_demo", "ali.demo@example.com"),
+        new("elif_demo", "elif.demo@example.com"),
+        new("burak_demo", "burak.demo@example.com")
     ];
 
     private static readonly DemoResource[] Resources =
@@ -64,7 +98,79 @@ public static class DemoDataSeeder
         new("Kalkülüs I limit çalışma soruları", "Limit ve süreklilik üzerine 10 alıştırma.",
             "Orta Doğu Teknik Üniversitesi", "MATH119", ResourceType.StudyQuestion, "ayse.demo@example.com",
             "limit-sorulari.txt", 1,
-            () => Text("Kalkülüs I — Limit Soruları (Demo)\n\n1) lim x→0 sin(x)/x = ?\n2) lim x→∞ (1 + 1/x)^x = ?\n\nBu dosya yalnızca demo amaçlı üretilmiştir."))
+            () => Text("Kalkülüs I — Limit Soruları (Demo)\n\n1) lim x→0 sin(x)/x = ?\n2) lim x→∞ (1 + 1/x)^x = ?\n\nBu dosya yalnızca demo amaçlı üretilmiştir.")),
+        new("İşletim sistemleri süreç yönetimi notları", "Süreç durumları, zamanlama algoritmaları ve kilitlenme.",
+            "Pamukkale Üniversitesi", "BLG311", ResourceType.LectureNote, "zeynep.demo@example.com",
+            "surec-yonetimi.txt", 4,
+            () => Text("İşletim Sistemleri — Süreç Yönetimi (Demo)\n\n1. Süreç durumları\n2. FCFS, SJF, Round Robin\n3. Kilitlenme koşulları\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 18),
+        new("Matematik I türev formülleri", "Temel türev kuralları ve zincir kuralı örnekleri.",
+            "Pamukkale Üniversitesi", "MAT101", ResourceType.StudyQuestion, "ali.demo@example.com",
+            "turev-formulleri.txt", 15,
+            () => Text("Matematik I — Türev Formülleri (Demo)\n\n(x^n)' = n·x^(n-1)\n(sin x)' = cos x\n(e^x)' = e^x\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 9),
+        new("Bilgisayar ağları OSI katmanları sunumu", "Yedi katmanın görevleri ve örnek protokoller.",
+            "Ege Üniversitesi", "BIL302", ResourceType.Presentation, "elif.demo@example.com",
+            "osi-katmanlari.pdf", 6,
+            () => Pdf("OSI Katmanlari (Demo Sunum)", "Fiziksel, Veri Baglantisi, Ag, Tasima", "Oturum, Sunum, Uygulama"), 25),
+        new("Bilgisayar ağları vize soruları", "TCP/UDP farkları ve alt ağ hesaplama soruları.",
+            "Ege Üniversitesi", "BIL302", ResourceType.PastExamQuestion, "burak.demo@example.com",
+            "aglar-vize.pdf", 10,
+            () => Pdf("Bilgisayar Aglari - Vize (Demo)", "Soru 1: TCP ile UDP arasindaki farklar nelerdir?", "Soru 2: Bir /26 agda kac adres vardir?"), 14),
+        new("Programlama dilleri Haskell giriş notları", "Fonksiyonel programlamaya giriş: liste işlemleri ve özyineleme.",
+            "Orta Doğu Teknik Üniversitesi", "CENG242", ResourceType.LectureNote, "zeynep.demo@example.com",
+            "haskell-giris.txt", 8,
+            () => Text("Programlama Dilleri — Haskell Girişi (Demo)\n\nsum [] = 0\nsum (x:xs) = x + sum xs\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 11),
+        new("Fizik I hareket problemleri", "Sabit ivmeli hareket ve eğik atış problemleri.",
+            "Orta Doğu Teknik Üniversitesi", "PHYS105", ResourceType.StudyQuestion, "ali.demo@example.com",
+            "fizik-hareket.txt", 2,
+            () => Text("Fizik I — Hareket Problemleri (Demo)\n\n1) 20 m/s hızla yukarı atılan cisim kaç saniyede geri döner?\n2) Eğik atışta menzil formülünü çıkarın.\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 6),
+        new("Nesneye dayalı programlama kalıtım sunumu", "Kalıtım, çok biçimlilik ve soyut sınıflar.",
+            "İstanbul Teknik Üniversitesi", "BLG252E", ResourceType.Presentation, "elif.demo@example.com",
+            "kalitim-sunum.pdf", 11,
+            () => Pdf("Nesneye Dayali Programlama (Demo Sunum)", "Kalitim ve cok bicimlilik", "Soyut siniflar ve arayuzler"), 21),
+        new("Lineer cebir matris işlemleri", "Determinant, ters matris ve özdeğer örnekleri.",
+            "İstanbul Teknik Üniversitesi", "MAT281E", ResourceType.LectureNote, "burak.demo@example.com",
+            "matris-islemleri.txt", 13,
+            () => Text("Lineer Cebir — Matris İşlemleri (Demo)\n\n1. Determinant\n2. Ters matris\n3. Özdeğer ve özvektör\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 16),
+        new("Elektrik devreleri final soruları", "Kirchhoff yasaları ve Thevenin eşdeğeri soruları.",
+            "İstanbul Teknik Üniversitesi", "EHB211E", ResourceType.PastExamQuestion, "mehmet.demo@example.com",
+            "devreler-final.pdf", 30,
+            () => Pdf("Elektrik Devreleri I - Final (Demo)", "Soru 1: Devrenin Thevenin esdegerini bulun.", "Soru 2: Dugum gerilimlerini hesaplayin."), 7),
+        new("Bilgisayar mühendisliğine giriş ders notları", "Algoritma kavramı, sayı sistemleri ve sözde kod.",
+            "Hacettepe Üniversitesi", "BBM101", ResourceType.LectureNote, "zeynep.demo@example.com",
+            "bbm101-notlar.txt", 16,
+            () => Text("Bilgisayar Mühendisliğine Giriş (Demo)\n\n1. Algoritma nedir?\n2. İkilik ve onaltılık sayı sistemleri\n3. Sözde kod\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 10),
+        new("Veri yönetimi ER diyagramı örneği", "Kütüphane sistemi için örnek varlık-ilişki diyagramı.",
+            "Hacettepe Üniversitesi", "BBM371", ResourceType.Presentation, "ayse.demo@example.com",
+            "er-diyagrami.png", 19,
+            () => Png(), 5),
+        new("Olasılık ve istatistik çalışma soruları", "Koşullu olasılık, Bayes teoremi ve normal dağılım.",
+            "Hacettepe Üniversitesi", "IST201", ResourceType.StudyQuestion, "elif.demo@example.com",
+            "olasilik-sorulari.txt", 5,
+            () => Text("Olasılık ve İstatistik (Demo)\n\n1) P(A|B) nasıl hesaplanır?\n2) Bayes teoremini bir örnekle açıklayın.\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 19),
+        new("Ayrık matematik mantık ve kümeler", "Önermeler mantığı, küme işlemleri ve ispat yöntemleri.",
+            "Dokuz Eylül Üniversitesi", "CME2201", ResourceType.LectureNote, "ali.demo@example.com",
+            "ayrik-matematik.txt", 22,
+            () => Text("Ayrık Matematik — Mantık ve Kümeler (Demo)\n\n1. Önermeler mantığı\n2. Küme işlemleri\n3. Tümevarım ile ispat\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 8),
+        new("Yazılım mühendisliği vize soruları", "Yazılım yaşam döngüsü modelleri ve gereksinim analizi.",
+            "Dokuz Eylül Üniversitesi", "CME3201", ResourceType.PastExamQuestion, "burak.demo@example.com",
+            "yazilim-vize.pdf", 9,
+            () => Pdf("Yazilim Muhendisligi - Vize (Demo)", "Soru 1: Selale ve cevik modelleri karsilastirin.", "Soru 2: Islevsel olmayan gereksinimlere ornek verin."), 12),
+        new("Programlamaya giriş Python alıştırmaları", "Döngüler, listeler ve fonksiyonlar üzerine alıştırmalar.",
+            "Boğaziçi Üniversitesi", "CMPE150", ResourceType.StudyQuestion, "zeynep.demo@example.com",
+            "python-alistirmalari.txt", 3,
+            () => Text("Python Alıştırmaları (Demo)\n\n1) 1 ile 100 arasındaki çift sayıları yazdırın.\n2) Bir listedeki en büyük elemanı bulan fonksiyon yazın.\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 23),
+        new("İktisada giriş arz ve talep sunumu", "Piyasa dengesi, esneklik ve örnek grafikler.",
+            "Boğaziçi Üniversitesi", "EC101", ResourceType.Presentation, "mehmet.demo@example.com",
+            "arz-talep.pdf", 17,
+            () => Pdf("Iktisada Giris (Demo Sunum)", "Arz ve talep egrileri", "Piyasa dengesi ve esneklik"), 4),
+        new("Bilgisayar bilimlerine giriş ders notları", "Bilgisayarın tarihçesi, donanım ve yazılım kavramları.",
+            "Karadeniz Teknik Üniversitesi", "BIL1001", ResourceType.LectureNote, "elif.demo@example.com",
+            "bil1001-notlar.txt", 25,
+            () => Text("Bilgisayar Bilimlerine Giriş (Demo)\n\n1. Tarihçe\n2. Donanım bileşenleri\n3. İşletim sistemi ve uygulamalar\n\nBu dosya yalnızca demo amaçlı üretilmiştir."), 3),
+        new("Analiz I geçmiş sınav soruları", "Limit, süreklilik ve türev konularından final soruları.",
+            "Karadeniz Teknik Üniversitesi", "MAT1011", ResourceType.PastExamQuestion, "ali.demo@example.com",
+            "analiz-final.pdf", 40,
+            () => Pdf("Analiz I - Final (Demo)", "Soru 1: x^2 sin(1/x) fonksiyonunun surekliligini inceleyin.", "Soru 2: Ortalama deger teoremini ispatlayin."), 9)
     ];
 
     public static async Task<DemoSeedResult> SeedAsync(
@@ -173,7 +279,8 @@ public static class DemoDataSeeder
                 ContentType = ContentTypeFor(demoResource.FileName),
                 FileSize = content.Length,
                 UploadedByUserId = uploader.Id,
-                UploadedAt = DateTimeOffset.UtcNow.AddDays(-demoResource.DaysAgo)
+                UploadedAt = DateTimeOffset.UtcNow.AddDays(-demoResource.DaysAgo),
+                ViewCount = demoResource.Views
             });
 
             try
@@ -335,5 +442,6 @@ public static class DemoDataSeeder
         string UploaderEmail,
         string FileName,
         int DaysAgo,
-        Func<byte[]> CreateContent);
+        Func<byte[]> CreateContent,
+        int Views = 0);
 }

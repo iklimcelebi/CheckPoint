@@ -111,7 +111,7 @@ public sealed class UniversityTests : ApiTestBase
 
         await AssertProblemAsync(await admin.Client.GetAsync("/api/universities/999999"), HttpStatusCode.NotFound);
         await AssertProblemAsync(
-            await admin.Client.PutAsJsonAsync("/api/universities/999999", new { name = "Yok", city = "Yok" }),
+            await admin.Client.PutAsJsonAsync("/api/universities/999999", new { name = "Yok", city = "Ankara" }),
             HttpStatusCode.NotFound);
         await AssertProblemAsync(await admin.Client.DeleteAsync("/api/universities/999999"), HttpStatusCode.NotFound);
     }

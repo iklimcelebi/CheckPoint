@@ -5,6 +5,7 @@ import type {
   LoginResponse,
   RegisterRequest,
   User,
+  UserStats,
 } from '../../api/types'
 
 export function login(body: LoginRequest): Promise<LoginResponse> {
@@ -21,4 +22,8 @@ export function fetchCurrentUser(signal?: AbortSignal): Promise<User> {
 
 export function changePassword(body: ChangePasswordRequest): Promise<void> {
   return apiRequest<void>('/api/users/me/password', { method: 'PUT', json: body })
+}
+
+export function fetchMyStats(signal?: AbortSignal): Promise<UserStats> {
+  return apiRequest<UserStats>('/api/users/me/stats', { signal })
 }

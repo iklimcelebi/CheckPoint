@@ -23,12 +23,18 @@ Sunum için adım adım senaryo: [docs/DEMO.md](docs/DEMO.md)
 
 ## Özellikler
 
-- Kayıt, giriş, çıkış, profil ve parola değiştirme (JWT ile kimlik doğrulama, 60 dakikalık oturum).
+- Kayıt, giriş, çıkış (JWT ile kimlik doğrulama, 60 dakikalık oturum).
+- Profil: yüklenen kaynak sayısı, toplam görüntülenme, favorilere eklenme, türe göre dağılım ve en çok görüntülenen kaynaklar; parola değiştirme ayrı sayfada.
 - Kaynak listesi: üniversite, ders, tür ve metin filtresi; sayfalama; filtreler adres çubuğunda saklanır.
 - Kaynak ayrıntısı ve indirme (Türkçe dosya adları korunur).
 - Kaynak yükleme (ilerleme çubuğuyla), düzenleme (başlık, açıklama, tür) ve silme.
-- "Benim Kaynaklarım" sayfası.
-- Üniversiteler (listeleme herkese; ekleme, düzenleme, silme yalnızca yöneticiye) ve dersler (herkes ekleyip düzenleyebilir).
+- Ana sayfa: hızlı filtre, popüler dersler (en çok görüntülenen), son eklenen kaynaklar ve üniversitelere göre kaynak sayıları.
+- Üst çubukta genel arama (üniversite, ders ve kaynak sonuçları tek sayfada), sol menü ve sağ üstte kullanıcı menüsü (Profili görüntüle, Çıkış yap).
+- Üniversiteler ve Dersler sayfalarında ada tıklayınca o üniversitenin/dersin kaynakları listelenir.
+- Favoriler: kaynakları yıldızla favorilere ekleme ve "Favoriler" sayfası.
+- "Kaynaklarım" sayfası; kaynak görüntülenme sayısı.
+- Üniversiteler (listeleme herkese; ekleme, düzenleme, silme yalnızca yöneticiye; il 81 il listesinden seçilir) ve dersler (herkes ekleyebilir; düzenleme ve silme yalnızca yöneticiye, Dersler sayfasındaki İşlemler sütunundan).
+- Yönetim sayfası: kullanıcı hesaplarını arama ve silme (kullanıcının kaynakları ve dosyaları da silinir; yönetici hesapları silinemez). Kaynağı olan ders silinemez.
 - Rol tabanlı yetki: `User` ve `Admin`. Bir kaynağı yalnızca yükleyen kişi veya yönetici düzenleyip silebilir.
 - Tüm hata mesajları Türkçe; arama Türkçe karakterlere duyarsızdır ("izmir" → "İzmir", "universite" → "Üniversite").
 
@@ -128,7 +134,7 @@ dotnet ef database update --project CheckPoint.Api
 dotnet user-secrets set "Seed:DemoData" "true" --project CheckPoint.Api
 ```
 
-Uygulama açılışta 3 üniversite, 7 ders, 2 demo kullanıcı ve 7 örnek kaynak ekler (örnek dosyalar kod içinde üretilir, telifsizdir). Tekrar açıldığında kayıtlar çoğalmaz. Kapatmak için: `dotnet user-secrets remove "Seed:DemoData" --project CheckPoint.Api`.
+Uygulama açılışta 8 üniversite, 22 ders, 6 demo kullanıcı (`ayse_demo`, `mehmet_demo`, `zeynep_demo`, `ali_demo`, `elif_demo`, `burak_demo`; e-posta `<ad>.demo@example.com`, parola `DemoParola1`) ve farklı kullanıcılarca yüklenmiş 25 örnek kaynak ekler (örnek dosyalar kod içinde üretilir, telifsizdir). Tekrar açıldığında kayıtlar çoğalmaz. Kapatmak için: `dotnet user-secrets remove "Seed:DemoData" --project CheckPoint.Api`.
 
 ### 5. Backend'i çalıştırın (1. terminal)
 
@@ -194,18 +200,27 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 | GET | `/api/users/me` | Giriş yapmış | Kendi bilgileri | 401 |
 | GET | `/api/users/me/resources` | Giriş yapmış | Kendi yüklediği kaynaklar (sayfalı) | 400 |
 | PUT | `/api/users/me/password` | Giriş yapmış | Kendi parolasını değiştir (`{ currentPassword, newPassword }`) | 400 (mevcut parola hatalı / kural), 429 |
+| GET | `/api/users/me/stats` | Giriş yapmış | Kaynak istatistikleri (sayı, görüntülenme, favori, türe göre, en çok görüntülenenler) | — |
+| GET | `/api/users?q=&page=&pageSize=` | **Admin** | Kullanıcı listesi (arama, kaynak sayısı) | 400, 403 |
+| DELETE | `/api/users/{id}` | **Admin** | Hesabı, kaynaklarını ve dosyalarını sil (yönetici ve kendi hesabı silinemez) | 403, 404, **409**, 503 |
+| GET | `/api/users/me/favorites` | Giriş yapmış | Favori kaynaklar (sayfalı, son eklenen önce) | 400 |
 | GET | `/api/universities?q=&page=&pageSize=` | Giriş yapmış | Üniversite listesi (sayfalı, arama) | 400 |
 | GET | `/api/universities/{id}` | Giriş yapmış | Üniversite ayrıntısı | 404 |
-| POST | `/api/universities` | **Admin** | Üniversite ekle | 400, 403, 409 |
+| POST | `/api/universities` | **Admin** | Üniversite ekle (`city` 81 ilden biri olmalı; büyük/küçük harf ve Türkçe karakter farkı düzeltilir, ör. `istanbul` → `İstanbul`) | 400, 403, 409 |
 | PUT | `/api/universities/{id}` | **Admin** | Üniversite güncelle | 400, 403, 404, 409 |
 | DELETE | `/api/universities/{id}` | **Admin** | Üniversite sil (dersi varsa silinemez) | 403, 404, **409** |
 | GET | `/api/courses?universityId=&q=&page=&pageSize=` | Giriş yapmış | Ders listesi | 400 |
 | GET | `/api/courses/{id}` | Giriş yapmış | Ders ayrıntısı | 404 |
 | POST | `/api/courses` | Giriş yapmış | Ders ekle (kod büyük harfe çevrilir) | 400, 409 |
-| PUT | `/api/courses/{id}` | Giriş yapmış | Ders adı/kodu güncelle (üniversite değişmez) | 400, 404, 409 |
+| PUT | `/api/courses/{id}` | **Admin** | Ders adı/kodu güncelle (üniversite değişmez) | 400, 403, 404, 409 |
+| DELETE | `/api/courses/{id}` | **Admin** | Ders sil (kaynağı varsa silinemez) | 403, 404, **409** |
+| GET | `/api/courses/popular?take=` | Giriş yapmış | En çok görüntülenen dersler (varsayılan 6, en fazla 20) | 400 |
 | GET | `/api/resources?universityId=&courseId=&type=&q=&page=&pageSize=` | Giriş yapmış | Kaynak listesi (en yeni önce) | 400 |
 | GET | `/api/resources/{id}` | Giriş yapmış | Kaynak ayrıntısı | 404 |
 | GET | `/api/resources/{id}/download` | Giriş yapmış | Dosyayı indir | 404, 503 |
+| POST | `/api/resources/{id}/view` | Giriş yapmış | Görüntülenme sayısını 1 artır (ayrıntı sayfası açılınca bir kez) | 404 |
+| PUT | `/api/resources/{id}/favorite` | Giriş yapmış | Favorilere ekle (tekrar çağrılabilir) | 404 |
+| DELETE | `/api/resources/{id}/favorite` | Giriş yapmış | Favorilerden çıkar | — |
 | POST | `/api/resources` | Giriş yapmış | Kaynak yükle (`multipart/form-data`) | 400, **413**, **415**, 503 |
 | PUT | `/api/resources/{id}` | **Yükleyen veya Admin** | Başlık, açıklama, tür güncelle | 400, **403**, 404 |
 | DELETE | `/api/resources/{id}` | **Yükleyen veya Admin** | Kaynağı ve dosyasını sil | **403**, 404, 503 |
@@ -213,6 +228,7 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 
 - **Sayfalı listeler:** `{ items, page, pageSize, totalCount }` döner. Varsayılan `page=1`, `pageSize=20`, en fazla 100.
 - **Kaynak türleri:** `LectureNote` (Ders Notu), `Presentation` (Sunum), `StudyQuestion` (Çalışma Sorusu), `PastExamQuestion` (Geçmiş Sınav Sorusu).
+- **Ek alanlar:** Kaynak yanıtlarında `viewCount` ve isteği yapan kullanıcıya göre `isFavorite`; üniversite yanıtlarında `resourceCount` bulunur.
 - **Hata yanıtları** [ProblemDetails](https://www.rfc-editor.org/rfc/rfc9457) biçimindedir ve Türkçedir:
 
 ```json
@@ -237,9 +253,9 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 
 | Test | Komut (klasör) | Ne test eder | Sayı |
 |---|---|---|---|
-| Backend | `dotnet test CheckPoint.sln` (kök) | Tüm uç noktalar, yetkiler, doğrulama, dosya kuralları, hız sınırı, Türkçe arama, parola değiştirme, demo verisi | 225 |
-| Frontend birim/bileşen | `npm test` (`CheckPoint.Web`) | Formlar, korumalı rotalar, filtreler, yükleme doğrulamaları, rol bazlı düğmeler, parola değiştirme | 68 |
-| Uçtan uca | `npm run test:e2e` (`CheckPoint.Web`) | Gerçek API + tarayıcı: kayıt → giriş → üniversite → ders → yükleme → arama → indirme → düzenleme → silme; başkasının kaynağına 403; hata ekranları; parola değiştirme | 5 |
+| Backend | `dotnet test CheckPoint.sln` (kök) | Tüm uç noktalar, yetkiler, doğrulama, dosya kuralları, hız sınırı, Türkçe arama, parola değiştirme, favoriler, popüler dersler, profil istatistikleri, kullanıcı ve ders silme, il listesi, ders düzenleme yetkisi, demo verisi | 249 |
+| Frontend birim/bileşen | `npm test` (`CheckPoint.Web`) | Formlar, korumalı rotalar, filtreler, yükleme doğrulamaları, rol bazlı düğmeler, parola değiştirme, ana sayfa, menüler, favoriler, profil istatistikleri, yönetim, ders işlemleri, il seçimi | 81 |
+| Uçtan uca | `npm run test:e2e` (`CheckPoint.Web`) | Gerçek API + tarayıcı: kayıt → giriş → üniversite → ders → yükleme → arama → indirme → düzenleme → silme; başkasının kaynağına 403; hata ekranları; parola değiştirme; genel arama ve favoriler; yöneticinin hesap silmesi | 7 |
 
 - Backend testleri ve uçtan uca testler kendi geçici LocalDB veritabanlarını oluşturur ve sonunda siler; `CheckPointDb`'ye dokunmaz.
 - Uçtan uca testler user-secrets gerektirmez (anahtar ve admin parolası her çalıştırmada rastgele üretilir). Çalıştığınız API (5118) açık olsa bile 5199 ve 5174 portlarını kullanır.

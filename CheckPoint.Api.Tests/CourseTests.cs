@@ -127,18 +127,7 @@ public sealed class CourseTests : ApiTestBase
 
         await AssertProblemAsync(await user.Client.GetAsync("/api/courses/999999"), HttpStatusCode.NotFound);
         await AssertProblemAsync(
-            await user.Client.PutAsJsonAsync("/api/courses/999999", new { name = "Ders", code = "X1" }),
+            await (await CreateAdminAsync()).Client.PutAsJsonAsync("/api/courses/999999", new { name = "Ders", code = "X1" }),
             HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task Delete_IsNotSupported()
-    {
-        var admin = await CreateAdminAsync();
-        var (_, course) = await CreateCatalogAsync(admin);
-
-        var response = await admin.Client.DeleteAsync($"/api/courses/{course.Id}");
-
-        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
 }

@@ -27,24 +27,24 @@ Bu belge, projeyi canlı olarak göstermek için adım adım bir akış ve olas�
 | 0:45 | Normal pencere → Giriş | `ayse.demo@example.com` ile **yanlış parola** | **401:** "E-posta veya parola hatalı." (Hangisinin yanlış olduğu bilerek söylenmez.) |
 | 1:00 | "Kayıt olun" | Parolaya `sadeceharf` yazıp gönderin | İstemci kuralı, sunucuya gitmeden: "Parola en az bir harf ve bir rakam içermelidir." |
 | 1:15 | Kayıt | E-posta olarak `ayse.demo@example.com`, geçerli parola `Parola123` | **409:** "Bu kullanıcı adı veya e-posta adresi zaten kayıtlı." |
-| 1:30 | Kayıt | Yeni bir e-postayla kayıt olun (ör. `ogrenci1@example.com` / `Parola123`) | Otomatik giriş; menüde kullanıcı adı görünür. Herkes `User` rolüyle kaydolur. |
-| 2:00 | Kaynaklar | Üniversite: **Pamukkale** → Ders: **BLG201** | Ders listesi seçilen üniversiteye göre yüklenir; adres çubuğu `?universite=..&ders=..` olur (bağlantı paylaşılabilir). |
+| 1:30 | Kayıt | Yeni bir e-postayla kayıt olun (ör. `ogrenci1@example.com` / `Parola123`) | Otomatik giriş ve **Ana Sayfa** açılır: hızlı filtre, popüler dersler, son eklenen kaynaklar, üniversitelere göre kaynak sayıları. Sağ üstte kullanıcı menüsü (Profili görüntüle, Çıkış yap). Herkes `User` rolüyle kaydolur. |
+| 2:00 | Üniversiteler → Pamukkale Üniversitesi | Sol menü **Üniversiteler** → **Pamukkale Üniversitesi** adına tıklayın → Ders: **BLG201** | Ders listesi seçilen üniversiteye göre yüklenir; adres çubuğu `?universite=..&ders=..` olur (bağlantı paylaşılabilir). |
 | 2:30 | Kaynaklar | "Filtreleri temizle" → Ara kutusuna `calisma` yazın | Türkçe karakterler olmadan yazılsa da "Kalkülüs I limit **çalışma** soruları" bulunur. Tür rozetleri, dosya boyutu ve Türkiye saatiyle tarih. |
-| 3:00 | Kaynak ayrıntısı | "Veri Yapıları vize soruları 2025" → **İndir** | PDF iner. Bu kaynak `mehmet_demo`'ya ait olduğu için **Düzenle/Sil düğmeleri yok.** |
+| 3:00 | Kaynak ayrıntısı | Üstteki arama çubuğuna `veri` yazıp Enter → "Veri Yapıları vize soruları 2025" → **Favorilere ekle** → **İndir** | Arama sonuçları üniversite, ders ve kaynak olarak gruplanır. Görüntülenme sayısı artar; kaynak sol menüdeki **Favoriler** sayfasında görünür. PDF iner. Bu kaynak `mehmet_demo`'ya ait olduğu için **Düzenle/Sil düğmeleri yok.** |
 | 3:30 | Adres çubuğu | Aynı kaynağın adresinin sonuna `/duzenle` ekleyin | "Erişim reddedildi": arayüz de sahiplik kontrolü yapar. |
-| 3:45 | Yükle | Formu doldurun, dosya olarak **`sahte.pdf`** seçin → Yükle | **415:** "Dosya içeriği, belirtilen dosya türüyle eşleşmiyor." Sunucu yalnızca uzantıya değil, dosyanın ilk baytlarına da bakar. |
-| 4:15 | Yükle | Dosyayı **`notlar.txt`** yapın → Yükle | İlerleme çubuğu, ardından kaynak sayfası ve "Kaynak yüklendi." Dosya diske rastgele (GUID) bir adla kaydedilir. |
+| 3:45 | Kaynak Yükle | Formu doldurun, dosya olarak **`sahte.pdf`** seçin → Yükle | **415:** "Dosya içeriği, belirtilen dosya türüyle eşleşmiyor." Sunucu yalnızca uzantıya değil, dosyanın ilk baytlarına da bakar. |
+| 4:15 | Kaynak Yükle | Dosyayı **`notlar.txt`** yapın → Yükle | İlerleme çubuğu, ardından kaynak sayfası ve "Kaynak yüklendi." Dosya diske rastgele (GUID) bir adla kaydedilir. |
 | 4:45 | Kaynak ayrıntısı | **Düzenle** → başlığı ve türü değiştirin → Kaydet | "Değişiklikler kaydedildi." Dosya ve ders değiştirilemez (formda belirtilir). |
-| 5:15 | Benim Kaynaklarım | Listeyi gösterin → yeni kaynakta **Sil** → Vazgeç → tekrar Sil → Sil | Onay penceresi; silince liste yenilenir. Dosya diskten de silinir. |
-| 5:45 | Adres çubuğu | http://localhost:5173/yonetim | Öğrenci için "Erişim reddedildi"; menüde "Yönetim" bağlantısı da görünmez. |
-| 6:00 | **Gizli pencere** | Yönetici hesabıyla giriş → **Yönetim** | Üniversite, ders ve kaynak sayıları. |
-| 6:20 | Üniversiteler | "Üniversite ekle" → `Test Üniversitesi` / `Denizli` | Eklenir. Aynı adla tekrar eklemek → **409** "Bu isimde bir üniversite zaten var." |
+| 5:15 | Kaynaklarım | Listeyi gösterin → yeni kaynakta **Sil** → Vazgeç → tekrar Sil → Sil | Onay penceresi; silince liste yenilenir. Dosya diskten de silinir. |
+| 5:45 | Adres çubuğu | http://localhost:5173/yonetim | Öğrenci için "Erişim reddedildi"; sol menüde "Yönetim" bağlantısı da görünmez. |
+| 6:00 | **Gizli pencere** | Yönetici hesabıyla giriş → **Yönetim** | Üniversite, ders, kaynak ve kullanıcı sayıları. **Kullanıcılar** sekmesinde `ogrenci1` hesabını silin (kaynakları da silinir; yönetici hesabında Sil yok). Sonra sol menü **Dersler** → `BLG201` satırında **Sil** (Düzenle/Sil yalnızca yöneticide görünür) → **409** "Bu derse bağlı kaynaklar olduğu için silinemez." |
+| 6:20 | Üniversiteler | "Üniversite ekle" → `Test Üniversitesi`, İl listesinden **Denizli** | Eklenir. Aynı adla tekrar eklemek → **409** "Bu isimde bir üniversite zaten var." |
 | 6:50 | Üniversiteler | **Pamukkale Üniversitesi → Sil → Sil** | **409:** "Bu üniversiteye bağlı dersler olduğu için silinemez." (Veri bütünlüğü korunur.) |
 | 7:10 | Üniversiteler | `Test Üniversitesi` → Sil | Dersi olmadığı için silinir. |
 | 7:30 | Kaynaklar (yönetici) | Bir öğrencinin kaynağını açın | Yönetici başkasının kaynağında da Düzenle/Sil görür (moderasyon). |
 | 7:50 | Swagger | **Authorize yapmadan** `GET /api/universities` → Execute | **401** ve Türkçe ProblemDetails gövdesi. |
 | 8:10 | Swagger | `POST /api/auth/login` ile `ayse.demo@example.com` / `DemoParola1` → token'ı **Authorize**'a yapıştırın → `DELETE /api/resources/{id}`; id olarak mehmet_demo'nun kaynağının numarasını yazın (3:00'teki kaynak sayfasının adresindeki sayı, ör. `/kaynaklar/6`) | **403:** "Bu kaynağı silme yetkiniz yok." Yetki kontrolü yalnızca arayüzde değil, sunucuda da var. |
-| 8:40 | Terminal | (İsteğe bağlı) `CheckPoint.Web` içinde `npm test` | 68 frontend testi ~10 saniyede geçer. Backend'de 225, uçtan uca 5 test var. |
+| 8:40 | Terminal | (İsteğe bağlı) `CheckPoint.Web` içinde `npm test` | 81 frontend testi ~10 saniyede geçer. Backend'de 249, uçtan uca 7 test var. |
 | 9:15 | — | Kapanış | Bilinen sınırlamalar ve sonraki adımlar (README'nin son bölümü). |
 
 **İpucu:** Bir adım beklenmedik şekilde giderse (ör. 429 "Çok fazla deneme"), bu da bir özelliktir: giriş ve kayıt IP başına dakikada 10 istekle sınırlıdır. Bir dakika bekleyin.
@@ -78,9 +78,9 @@ Sayfa yenilenince oturumun korunması istendi; token yalnızca bellekte tutulsay
 
 **Nasıl test edildi?**
 Üç katman var:
-- **225 backend entegrasyon testi:** Her test kendi geçici veritabanını oluşturup siliyor.
-- **68 frontend bileşen testi:** Vitest, React Testing Library ve sahte API (MSW).
-- **5 uçtan uca test:** Playwright gerçek tarayıcıda gerçek API'ye karşı tüm akışı ve 403 senaryosunu çalıştırıyor.
+- **249 backend entegrasyon testi:** Her test kendi geçici veritabanını oluşturup siliyor.
+- **81 frontend bileşen testi:** Vitest, React Testing Library ve sahte API (MSW).
+- **7 uçtan uca test:** Playwright gerçek tarayıcıda gerçek API'ye karşı tüm akışı ve 403 senaryosunu çalıştırıyor.
 
 Ayrıca her aşamadan sonra test adımlarını elle uygulayıp doğruladım.
 

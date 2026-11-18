@@ -207,7 +207,7 @@ public sealed class ValidationTests : ApiTestBase
         var user = await CreateUserAsync();
 
         var notFound = await user.Client.GetAsync("/api/olmayan-adres");
-        var methodNotAllowed = await user.Client.DeleteAsync("/api/courses/1");
+        var methodNotAllowed = await user.Client.DeleteAsync("/api/resources/1/view");
 
         Assert.Equal("Bulunamadı", (await AssertProblemAsync(notFound, HttpStatusCode.NotFound)).Title);
         Assert.Equal(

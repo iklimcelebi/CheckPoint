@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<User> Users => Set<User>();
     public DbSet<EducationalResource> EducationalResources => Set<EducationalResource>();
+    public DbSet<Favorite> Favorites => Set<Favorite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +74,23 @@ public class AppDbContext : DbContext
                 .WithMany(user => user.UploadedResources)
                 .HasForeignKey(resource => resource.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+        });
+
+        modelBuilder.Entity<Favorite>(entity =>
+        {
+            entity.HasKey(favorite => new { favorite.UserId, favorite.ResourceId });
+            entity.HasIndex(favorite => new { favorite.UserId, favorite.CreatedAt });
+
+            entity.HasOne(favorite => favorite.User)
+                .WithMany(user => user.Favorites)
+                .HasForeignKey(favorite => favorite.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(favorite => favorite.Resource)
+                .WithMany(resource => resource.Favorites)
+                .HasForeignKey(favorite => favorite.ResourceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

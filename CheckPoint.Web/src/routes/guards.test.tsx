@@ -1,12 +1,12 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import type { RouteObject } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { ProfilePage } from '../features/auth/ProfilePage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { getSessionSnapshot } from '../lib/session'
 import { server } from '../test/server'
-import { api, currentLocation, renderRoutes, signInAs } from '../test/utils'
+import { api, currentLocation, makeStats, renderRoutes, signInAs } from '../test/utils'
 import { GuestOnly, RequireAdmin, RequireAuth } from './guards'
 
 const routes: RouteObject[] = [
@@ -14,6 +14,7 @@ const routes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
+      { path: '/', element: <h1>Ana sayfa</h1> },
       { path: '/kaynaklar', element: <h1>Kaynaklar sayfası</h1> },
       { path: '/profil', element: <ProfilePage /> },
       {
@@ -23,6 +24,10 @@ const routes: RouteObject[] = [
     ],
   },
 ]
+
+beforeEach(() => {
+  server.use(http.get(api('/api/users/me/stats'), () => HttpResponse.json(makeStats())))
+})
 
 describe('route guards', () => {
   it('sends anonymous visitors to the login page with a return path', () => {
@@ -46,7 +51,7 @@ describe('route guards', () => {
   it('redirects signed-in users away from the login page', () => {
     signInAs('User')
     const { router } = renderRoutes(routes, '/giris')
-    expect(currentLocation(router)).toBe('/kaynaklar')
+    expect(currentLocation(router)).toBe('/')
   })
 
   it('signs out and asks for a new login when the API returns 401', async () => {

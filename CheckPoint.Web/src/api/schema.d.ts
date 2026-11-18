@@ -296,6 +296,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/popular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Popüler dersleri listeler
+         * @description En az bir kaynağı olan dersleri, kaynaklarının toplam görüntülenme sayısına, eşitlikte kaynak sayısına göre sıralar.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    take?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PopularCourseResponse"][];
+                        "application/json": components["schemas"]["PopularCourseResponse"][];
+                        "text/json": components["schemas"]["PopularCourseResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{id}": {
         parameters: {
             query?: never;
@@ -351,7 +416,7 @@ export interface paths {
             };
         };
         /**
-         * Dersi günceller
+         * Dersi günceller (Admin)
          * @description Sadece ad ve kod değişir; dersin üniversitesi değiştirilemez.
          */
         put: {
@@ -400,6 +465,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -425,7 +501,74 @@ export interface paths {
             };
         };
         post?: never;
-        delete?: never;
+        /**
+         * Dersi siler (Admin)
+         * @description Kaynağı olan ders silinemez; bu durumda 409 döner.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -602,7 +745,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Kaynak ayrıntısını getirir */
+        /**
+         * Kaynak ayrıntısını getirir
+         * @description Görüntülenme sayısını değiştirmez; sayaç POST /api/resources/{id}/view ile artırılır.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -797,6 +943,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/resources/{id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kaynağın görüntülenme sayısını bir artırır
+         * @description Kaynak ayrıntı sayfası açıldığında bir kez çağrılır; popüler dersler bu sayıya göre sıralanır.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/resources/{id}/download": {
         parameters: {
             query?: never;
@@ -866,6 +1073,112 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/resources/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Kaynağı favorilere ekler
+         * @description Zaten favorideyse bir şey değişmez.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Kaynağı favorilerden çıkarır
+         * @description Favoride değilse bir şey değişmez.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1220,6 +1533,230 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/me/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Giriş yapmış kullanıcının kaynak istatistiklerini getirir
+         * @description Yüklenen kaynak sayısı, bu kaynakların toplam görüntülenmesi, başkalarınca favoriye eklenme sayısı, kullanıcının kendi favori sayısı, türe göre dağılım ve en çok görüntülenen kaynaklar.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["UserStatsResponse"];
+                        "application/json": components["schemas"]["UserStatsResponse"];
+                        "text/json": components["schemas"]["UserStatsResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kullanıcıları listeler (Admin)
+         * @description Kullanıcı adına göre sıralı, sayfalı liste. q verilirse kullanıcı adı veya e-posta içinde arar.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PagedResponseOfAdminUserResponse"];
+                        "application/json": components["schemas"]["PagedResponseOfAdminUserResponse"];
+                        "text/json": components["schemas"]["PagedResponseOfAdminUserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Kullanıcı hesabını siler (Admin)
+         * @description Hesapla birlikte kullanıcının yüklediği kaynaklar, dosyaları ve favorileri silinir. Yönetici hesapları ve yöneticinin kendi hesabı silinemez (409). Depolama erişilemezse hiçbir şey silinmez ve 503 döner.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -1419,10 +1956,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/me/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Giriş yapmış kullanıcının favori kaynaklarını listeler
+         * @description En son favorilere eklenen önce gelir.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PagedResponseOfResourceResponse"];
+                        "application/json": components["schemas"]["PagedResponseOfResourceResponse"];
+                        "text/json": components["schemas"]["PagedResponseOfResourceResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AdminUserResponse: {
+            /** Format: int32 */
+            id: number;
+            username: string;
+            email: string;
+            role: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int32 */
+            resourceCount: number;
+        };
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
@@ -1490,6 +2104,15 @@ export interface components {
             expiresAt: string;
             user: components["schemas"]["UserResponse"];
         };
+        PagedResponseOfAdminUserResponse: {
+            items: components["schemas"]["AdminUserResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+        };
         PagedResponseOfCourseResponse: {
             items: components["schemas"]["CourseResponse"][];
             /** Format: int32 */
@@ -1516,6 +2139,19 @@ export interface components {
             pageSize: number;
             /** Format: int32 */
             totalCount: number;
+        };
+        PopularCourseResponse: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            code: string;
+            /** Format: int32 */
+            universityId: number;
+            universityName: string;
+            /** Format: int32 */
+            resourceCount: number;
+            /** Format: int32 */
+            viewCount: number;
         };
         ProblemDetails: {
             type?: null | string;
@@ -1557,9 +2193,17 @@ export interface components {
             uploadedBy: components["schemas"]["ResourceUploaderResponse"];
             /** Format: date-time */
             uploadedAt: string;
+            /** Format: int32 */
+            viewCount: number;
+            isFavorite: boolean;
         };
         /** @enum {string} */
         ResourceType: "LectureNote" | "Presentation" | "StudyQuestion" | "PastExamQuestion";
+        ResourceTypeCountResponse: {
+            type: components["schemas"]["ResourceType"];
+            /** Format: int32 */
+            count: number;
+        };
         ResourceUniversityResponse: {
             /** Format: int32 */
             id: number;
@@ -1581,6 +2225,13 @@ export interface components {
             value?: null | string;
             hasValue?: boolean;
         };
+        TopResourceResponse: {
+            /** Format: int32 */
+            id: number;
+            title: string;
+            /** Format: int32 */
+            viewCount: number;
+        };
         /**
          * @example {
          *       "name": "Pamukkale Üniversitesi",
@@ -1596,6 +2247,8 @@ export interface components {
             id: number;
             name: string;
             city: string;
+            /** Format: int32 */
+            resourceCount: number;
         };
         /**
          * @example {
@@ -1615,6 +2268,18 @@ export interface components {
             username: string;
             email: string;
             role: string;
+        };
+        UserStatsResponse: {
+            /** Format: int32 */
+            resourceCount: number;
+            /** Format: int32 */
+            totalViews: number;
+            /** Format: int32 */
+            favoritesReceived: number;
+            /** Format: int32 */
+            favoriteCount: number;
+            resourcesByType: components["schemas"]["ResourceTypeCountResponse"][];
+            topResources: components["schemas"]["TopResourceResponse"][];
         };
         ValidationProblemDetails: {
             type?: null | string;

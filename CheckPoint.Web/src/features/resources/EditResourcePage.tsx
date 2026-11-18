@@ -35,7 +35,7 @@ export function EditResourcePage() {
     return (
       <Page title="Kaynak bulunamadı">
         <EmptyState title="Bu kaynak bulunamadı veya silinmiş olabilir.">
-          <Link to="/kaynaklar" className="font-medium text-blue-700 hover:underline">
+          <Link to="/kaynaklar" className="font-medium text-accent hover:underline">
             Kaynaklara dön
           </Link>
         </EmptyState>

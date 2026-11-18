@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useLocation, type RouteObject } from 'react-router'
-import type { LoginResponse, Resource, Role } from '../api/types'
+import type { LoginResponse, Resource, Role, UserStats } from '../api/types'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { API_BASE_URL } from '../lib/config'
 import { saveSession } from '../lib/session'
@@ -33,6 +33,8 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
     fileSize: 2048,
     uploadedBy: { id: 1, username: 'ayse' },
     uploadedAt: '2026-11-15T09:30:00Z',
+    viewCount: 0,
+    isFavorite: false,
     ...overrides,
   }
 }
@@ -63,4 +65,16 @@ export function renderRoutes(routes: RouteObject[], initialEntry: string) {
 
 export function currentLocation(router: ReturnType<typeof createMemoryRouter>) {
   return `${router.state.location.pathname}${router.state.location.search}`
+}
+
+export function makeStats(overrides: Partial<UserStats> = {}): UserStats {
+  return {
+    resourceCount: 0,
+    totalViews: 0,
+    favoritesReceived: 0,
+    favoriteCount: 0,
+    resourcesByType: [],
+    topResources: [],
+    ...overrides,
+  }
 }

@@ -29,8 +29,8 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
         </p>
         <button
           type="button"
-          onClick={() => window.location.assign('/kaynaklar')}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          onClick={() => window.location.assign('/')}
+          className="rounded-md bg-tangerine px-4 py-2 text-sm font-medium text-slate-900 hover:bg-tangerine-strong"
         >
           Ana sayfaya dön
         </button>

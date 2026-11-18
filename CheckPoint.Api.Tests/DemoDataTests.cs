@@ -23,14 +23,16 @@ public sealed class DemoDataTests : ApiTestBase
         var first = await SeedAsync();
         var second = await SeedAsync();
 
-        Assert.Equal((3, 7, 2, 7), (first.Universities, first.Courses, first.Users, first.Resources));
+        Assert.Equal((8, 22, 6, 25), (first.Universities, first.Courses, first.Users, first.Resources));
         Assert.Equal((0, 0, 0, 0, 0), (second.Universities, second.Courses, second.Users, second.Resources, second.RestoredFiles));
         await using var db = Factory.CreateDbContext();
-        Assert.Equal(3, await db.Universities.CountAsync());
-        Assert.Equal(7, await db.Courses.CountAsync());
-        Assert.Equal(2, await db.Users.CountAsync(user => user.Role == "User"));
-        Assert.Equal(7, await db.EducationalResources.CountAsync());
-        Assert.Equal(7, StoredFiles().Length);
+        Assert.Equal(8, await db.Universities.CountAsync());
+        Assert.Equal(22, await db.Courses.CountAsync());
+        Assert.Equal(6, await db.Users.CountAsync(user => user.Role == "User"));
+        Assert.Equal(25, await db.EducationalResources.CountAsync());
+        Assert.Equal(25, StoredFiles().Length);
+        Assert.False(await db.Users.AnyAsync(user => user.Role == "User" && !user.UploadedResources.Any()));
+        Assert.False(await db.Universities.AnyAsync(university => !university.Resources.Any()));
     }
 
     [Fact]
@@ -42,7 +44,7 @@ public sealed class DemoDataTests : ApiTestBase
         var result = await SeedAsync();
 
         Assert.Equal(1, result.RestoredFiles);
-        Assert.Equal(7, StoredFiles().Length);
+        Assert.Equal(25, StoredFiles().Length);
         await using var db = Factory.CreateDbContext();
         foreach (var resource in await db.EducationalResources.ToListAsync())
             Assert.True(File.Exists(Path.Combine(Factory.UploadRoot, resource.StoredFileName)));
@@ -59,7 +61,7 @@ public sealed class DemoDataTests : ApiTestBase
 
         var result = await SeedAsync();
 
-        Assert.Equal(2, result.Universities);
+        Assert.Equal(7, result.Universities);
         await using var check = Factory.CreateDbContext();
         Assert.Equal(1, await check.Universities.CountAsync(university => university.Name == "Ege Üniversitesi"));
     }
@@ -197,7 +199,7 @@ public sealed class DemoDataStartupTests : IAsyncLifetime
             {
                 Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
             });
-        Assert.Equal(7, resources!.TotalCount);
+        Assert.Equal(25, resources!.TotalCount);
         var png = resources.Items.Single(item => item.OriginalFileName == "akis-semasi.png");
         var download = await client.GetAsync($"/api/resources/{png.Id}/download");
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);

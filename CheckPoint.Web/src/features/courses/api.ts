@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '../../api/client'
-import type { Course, CourseRequest, CourseUpdateRequest, PagedResponse } from '../../api/types'
+import type {
+  Course,
+  CourseRequest,
+  CourseUpdateRequest,
+  PagedResponse,
+  PopularCourse,
+} from '../../api/types'
 import { OPTIONS_PAGE_SIZE } from '../universities/api'
 
 export interface CourseQuery {
@@ -30,4 +36,16 @@ export function createCourse(body: CourseRequest) {
 
 export function updateCourse(id: number, body: CourseUpdateRequest) {
   return apiRequest<void>(`/api/courses/${id}`, { method: 'PUT', json: body })
+}
+
+export function usePopularCourses(take = 6) {
+  return useQuery({
+    queryKey: ['courses', 'popular', take],
+    queryFn: ({ signal }) =>
+      apiRequest<PopularCourse[]>('/api/courses/popular', { query: { take }, signal }),
+  })
+}
+
+export function deleteCourse(id: number) {
+  return apiRequest<void>(`/api/courses/${id}`, { method: 'DELETE' })
 }

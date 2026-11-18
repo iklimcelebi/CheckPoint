@@ -15,7 +15,8 @@ import { applyApiError } from '../../lib/forms'
 import { RESOURCE_TYPE_LABELS, RESOURCE_TYPES } from '../../lib/resourceTypes'
 import { useCourseOptions } from '../courses/api'
 import { useUniversityOptions } from '../universities/api'
-import { createResource, resourceKeys } from './api'
+import { createResource } from './api'
+import { invalidateCatalogCounts } from './hooks'
 import { resourceUploadSchema, type ResourceUploadForm } from './schemas'
 
 const SERVER_FIELDS = ['title', 'description', 'universityId', 'courseId', 'type', 'file'] as const
@@ -62,7 +63,7 @@ export function UploadPage() {
         },
         setProgress,
       )
-      await queryClient.invalidateQueries({ queryKey: resourceKeys.all })
+      await invalidateCatalogCounts(queryClient)
       void navigate(`/kaynaklar/${created.id}`, { state: { notice: 'Kaynak yüklendi.' } })
     } catch (error) {
       setProgress(undefined)
@@ -185,7 +186,7 @@ export function UploadPage() {
               className="h-2 overflow-hidden rounded-full bg-slate-200"
             >
               <div
-                className="h-full bg-blue-600 transition-all"
+                className="h-full bg-tangerine transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -198,7 +199,7 @@ export function UploadPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-slate-500">
             Dersiniz listede yok mu?{' '}
-            <Link to="/dersler" className="font-medium text-blue-700 hover:underline">
+            <Link to="/dersler" className="font-medium text-accent hover:underline">
               Dersler sayfasından ekleyin.
             </Link>
           </p>

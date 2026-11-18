@@ -28,11 +28,24 @@ export async function login(page: Page, email: string, password: string) {
   await page.getByLabel('E-posta').fill(email)
   await page.getByLabel('Parola').fill(password)
   await page.getByRole('button', { name: 'Giriş yap' }).click()
-  await expect(page).toHaveURL(/\/kaynaklar$/)
+  await expect(page).toHaveURL(HOME_URL)
+}
+
+export const HOME_URL = /:\d+\/$/
+
+export function navLink(page: Page, name: string) {
+  return page.getByRole('navigation', { name: 'Ana menü' }).getByRole('link', { name, exact: true })
+}
+
+export function userMenu(page: Page, username?: string) {
+  return page.getByRole('button', {
+    name: username ? `Kullanıcı menüsü: ${username}` : /^Kullanıcı menüsü:/,
+  })
 }
 
 export async function logout(page: Page) {
-  await page.getByRole('button', { name: 'Çıkış' }).click()
+  await userMenu(page).click()
+  await page.getByRole('menuitem', { name: 'Çıkış yap' }).click()
   await expect(page).toHaveURL(/\/giris$/)
 }
 

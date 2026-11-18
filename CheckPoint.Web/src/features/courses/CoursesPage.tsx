@@ -1,11 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router'
+import { errorMessage } from '../../api/errors'
 import type { Course, University } from '../../api/types'
 import { Page } from '../../components/Page'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { FormDialog } from '../../components/ui/FormDialog'
 import { Pagination } from '../../components/ui/Pagination'
 import { SelectField } from '../../components/ui/SelectField'
@@ -13,8 +16,9 @@ import { EmptyState, ErrorState, LoadingState } from '../../components/ui/Status
 import { TextField } from '../../components/ui/TextField'
 import { applyApiError } from '../../lib/forms'
 import { useSearchState } from '../../lib/useSearchState'
+import { useAuth } from '../auth/authContext'
 import { useUniversityOptions } from '../universities/api'
-import { createCourse, fetchCourses, updateCourse } from './api'
+import { createCourse, deleteCourse, fetchCourses, updateCourse } from './api'
 import {
   courseCreateSchema,
   courseEditSchema,
@@ -34,6 +38,8 @@ export function CoursesPage() {
   const [universityId, setUniversityId] = useState<number>()
   const [editing, setEditing] = useState<Editing | null>(null)
   const [notice, setNotice] = useState<string>()
+  const [deleting, setDeleting] = useState<Course | null>(null)
+  const { isAdmin } = useAuth()
   const universities = useUniversityOptions()
 
   const list = useQuery({
@@ -52,10 +58,23 @@ export function CoursesPage() {
     ])
   }
 
+  const deletion = useMutation({
+    mutationFn: (course: Course) => deleteCourse(course.id),
+    onSuccess: async (_, course) => {
+      setDeleting(null)
+      if (list.data?.items.length === 1 && page > 1) setPage(page - 1)
+      await onSaved(`"${course.code} ${course.name}" silindi.`)
+    },
+  })
+
   return (
     <Page
       title="Dersler"
-      description="Derslere göz atın; listede olmayan dersi siz ekleyin."
+      description={
+        isAdmin
+          ? 'Dersleri ekleyin, düzenleyin veya silin.'
+          : 'Derslere göz atın; listede olmayan dersi siz ekleyin.'
+      }
       actions={
         <Button
           onClick={() => {
@@ -117,9 +136,11 @@ export function CoursesPage() {
                   <th scope="col" className="px-4 py-3 font-medium">
                     Üniversite
                   </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    İşlemler
-                  </th>
+                  {isAdmin && (
+                    <th scope="col" className="px-4 py-3 text-right font-medium">
+                      İşlemler
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -128,21 +149,45 @@ export function CoursesPage() {
                     <td className="px-4 py-3 font-mono font-medium text-slate-900">
                       {course.code}
                     </td>
-                    <td className="px-4 py-3 text-slate-900">{course.name}</td>
-                    <td className="px-4 py-3 text-slate-700">{course.universityName}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        aria-label={`${course.code} ${course.name} düzenle`}
-                        onClick={() => {
-                          setNotice(undefined)
-                          setEditing({ mode: 'edit', course })
-                        }}
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/kaynaklar?universite=${course.universityId}&ders=${course.id}`}
+                        className="font-medium text-accent hover:underline"
+                        title="Bu dersin kaynaklarını göster"
                       >
-                        Düzenle
-                      </Button>
+                        {course.name}
+                      </Link>
                     </td>
+                    <td className="px-4 py-3 text-slate-700">{course.universityName}</td>
+                    {isAdmin && (
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="secondary"
+                            size="small"
+                            aria-label={`${course.code} ${course.name} düzenle`}
+                            onClick={() => {
+                              setNotice(undefined)
+                              setEditing({ mode: 'edit', course })
+                            }}
+                          >
+                            Düzenle
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="small"
+                            aria-label={`${course.code} ${course.name} sil`}
+                            onClick={() => {
+                              setNotice(undefined)
+                              deletion.reset()
+                              setDeleting(course)
+                            }}
+                          >
+                            Sil
+                          </Button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -165,7 +210,7 @@ export function CoursesPage() {
           onSaved={onSaved}
         />
       )}
-      {editing?.mode === 'edit' && (
+      {isAdmin && editing?.mode === 'edit' && (
         <EditCourseDialog
           key={editing.course.id}
           course={editing.course}
@@ -173,6 +218,23 @@ export function CoursesPage() {
           onSaved={onSaved}
         />
       )}
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Dersi sil"
+        confirmLabel="Sil"
+        busyLabel="Siliniyor…"
+        busy={deletion.isPending}
+        error={deletion.error ? errorMessage(deletion.error) : undefined}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => deleting && deletion.mutate(deleting)}
+      >
+        <p>
+          <strong>
+            {deleting?.code} {deleting?.name}
+          </strong>{' '}
+          silinecek. Kaynağı olan dersler silinemez.
+        </p>
+      </ConfirmDialog>
     </Page>
   )
 }

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 import { AppLayout } from '../components/AppLayout'
 import { AuthLayout } from '../components/AuthLayout'
 import { GuestOnly, RequireAdmin, RequireAuth } from './guards'
@@ -39,7 +39,24 @@ export const router = createBrowserRouter([
           {
             element: <AppLayout />,
             children: [
-              { path: '/', element: <Navigate to="/kaynaklar" replace /> },
+              {
+                path: '/',
+                lazy: async () => ({
+                  Component: (await import('../features/home/HomePage')).HomePage,
+                }),
+              },
+              {
+                path: '/arama',
+                lazy: async () => ({
+                  Component: (await import('../features/search/SearchPage')).SearchPage,
+                }),
+              },
+              {
+                path: '/favoriler',
+                lazy: async () => ({
+                  Component: (await import('../features/resources/FavoritesPage')).FavoritesPage,
+                }),
+              },
               {
                 path: '/kaynaklar',
                 lazy: async () => ({
@@ -85,6 +102,13 @@ export const router = createBrowserRouter([
                 path: '/dersler',
                 lazy: async () => ({
                   Component: (await import('../features/courses/CoursesPage')).CoursesPage,
+                }),
+              },
+              {
+                path: '/profil/parola',
+                lazy: async () => ({
+                  Component: (await import('../features/auth/ChangePasswordPage'))
+                    .ChangePasswordPage,
                 }),
               },
               {

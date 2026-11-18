@@ -19,3 +19,27 @@ public sealed record ChangePasswordRequest
     [PasswordPolicy]
     public required string NewPassword { get; init; }
 }
+
+/// <summary>Upload and engagement statistics for the signed-in user.</summary>
+public sealed record UserStatsResponse(
+    int ResourceCount,
+    int TotalViews,
+    int FavoritesReceived,
+    int FavoriteCount,
+    IReadOnlyList<ResourceTypeCountResponse> ResourcesByType,
+    IReadOnlyList<TopResourceResponse> TopResources);
+
+/// <summary>Number of resources of one type.</summary>
+public sealed record ResourceTypeCountResponse(CheckPoint.Api.Models.ResourceType Type, int Count);
+
+/// <summary>A resource ranked by its view count.</summary>
+public sealed record TopResourceResponse(int Id, string Title, int ViewCount);
+
+/// <summary>User account details shown to administrators.</summary>
+public sealed record AdminUserResponse(
+    int Id,
+    string Username,
+    string Email,
+    string Role,
+    DateTimeOffset CreatedAt,
+    int ResourceCount);

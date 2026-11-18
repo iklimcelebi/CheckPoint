@@ -19,14 +19,11 @@ export function RouteErrorPage() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-md bg-tangerine px-4 py-2 text-sm font-medium text-slate-900 hover:bg-tangerine-strong"
         >
           Sayfayı yenile
         </button>
-        <Link
-          to="/kaynaklar"
-          className="px-4 py-2 text-sm font-medium text-blue-700 hover:underline"
-        >
+        <Link to="/" className="px-4 py-2 text-sm font-medium text-accent hover:underline">
           Ana sayfaya dön
         </Link>
       </div>

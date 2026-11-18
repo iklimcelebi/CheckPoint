@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { admin, login, logout, newUser, register, uniqueSuffix } from './support'
+import {
+  admin,
+  HOME_URL,
+  login,
+  logout,
+  navLink,
+  newUser,
+  register,
+  uniqueSuffix,
+  userMenu,
+} from './support'
 
 test('register, manage catalog, upload, find, download, edit and delete a resource', async ({
   page,
@@ -13,11 +23,11 @@ test('register, manage catalog, upload, find, download, edit and delete a resour
 
   await test.step('admin adds a university', async () => {
     await login(page, admin.email, admin.password)
-    await page.getByRole('link', { name: 'Üniversiteler' }).click()
+    await navLink(page, 'Üniversiteler').click()
     await page.getByRole('button', { name: 'Üniversite ekle' }).click()
     const dialog = page.getByRole('dialog', { name: 'Üniversite ekle' })
     await dialog.getByLabel('Üniversite adı').fill(universityName)
-    await dialog.getByLabel('Şehir').fill('İzmir')
+    await dialog.getByLabel('İl').selectOption('İzmir')
     await dialog.getByRole('button', { name: 'Kaydet' }).click()
     await expect(page.getByText(`"${universityName}" eklendi.`)).toBeVisible()
     await logout(page)
@@ -26,12 +36,12 @@ test('register, manage catalog, upload, find, download, edit and delete a resour
   await test.step('a new student registers and is signed in', async () => {
     const student = newUser()
     await register(page, student)
-    await expect(page).toHaveURL(/\/kaynaklar$/)
-    await expect(page.getByRole('link', { name: student.username })).toBeVisible()
+    await expect(page).toHaveURL(HOME_URL)
+    await expect(userMenu(page, student.username)).toBeVisible()
   })
 
   await test.step('the student adds a course', async () => {
-    await page.getByRole('link', { name: 'Dersler' }).click()
+    await navLink(page, 'Dersler').click()
     await page.getByRole('button', { name: 'Ders ekle' }).click()
     const dialog = page.getByRole('dialog', { name: 'Ders ekle' })
     await dialog.getByLabel('Üniversite').selectOption({ label: universityName })
@@ -42,7 +52,7 @@ test('register, manage catalog, upload, find, download, edit and delete a resour
   })
 
   await test.step('the student uploads a file', async () => {
-    await page.getByRole('link', { name: 'Yükle', exact: true }).click()
+    await navLink(page, 'Kaynak Yükle').click()
     await page.getByLabel('Başlık').fill(title)
     await page.getByLabel('Açıklama (isteğe bağlı)').fill('Uçtan uca test açıklaması')
     await page.getByLabel('Üniversite', { exact: true }).selectOption({ label: universityName })
@@ -61,10 +71,15 @@ test('register, manage catalog, upload, find, download, edit and delete a resour
   })
 
   await test.step('the resource is found with filters and search', async () => {
-    await page.getByRole('link', { name: 'Kaynaklar', exact: true }).click()
-    await page.getByLabel('Üniversite').selectOption({ label: universityName })
-    await page.getByLabel('Tür').selectOption({ label: 'Ders Notu' })
-    await page.getByLabel('Ara').fill(`ders notu ${suffix}`)
+    await navLink(page, 'Üniversiteler').click()
+    await page.getByLabel('Ara', { exact: true }).fill(universityName)
+    await page.getByRole('link', { name: universityName, exact: true }).click()
+    await expect(page.getByLabel('Üniversite', { exact: true })).toHaveValue(/\d+/)
+    await expect(
+      page.getByLabel('Üniversite', { exact: true }).locator('option:checked'),
+    ).toHaveText(universityName)
+    await page.getByLabel('Tür', { exact: true }).selectOption({ label: 'Ders Notu' })
+    await page.getByLabel('Ara', { exact: true }).fill(`ders notu ${suffix}`)
     await expect(page).toHaveURL(new RegExp(`q=ders\\+notu\\+${suffix}`))
     await expect(page.getByText('1 kaynak bulundu.')).toBeVisible()
     await page.getByRole('link', { name: title }).click()
@@ -80,7 +95,7 @@ test('register, manage catalog, upload, find, download, edit and delete a resour
 
   await test.step('the owner edits and deletes the resource', async () => {
     await page.getByRole('link', { name: 'Düzenle' }).click()
-    await page.getByLabel('Tür').selectOption({ label: 'Çalışma Sorusu' })
+    await page.getByLabel('Tür', { exact: true }).selectOption({ label: 'Çalışma Sorusu' })
     await page.getByRole('button', { name: 'Kaydet' }).click()
     await expect(page.getByText('Değişiklikler kaydedildi.')).toBeVisible()
     await expect(page.getByText('Çalışma Sorusu')).toBeVisible()
@@ -92,7 +107,7 @@ test('register, manage catalog, upload, find, download, edit and delete a resour
       .click()
     await expect(page).toHaveURL(/\/kaynaklar$/)
     await expect(page.getByText('Kaynak silindi.')).toBeVisible()
-    await page.getByLabel('Ara').fill(suffix)
+    await page.getByLabel('Ara', { exact: true }).fill(suffix)
     await expect(page.getByText('Filtrelere uyan kaynak bulunamadı.')).toBeVisible()
   })
 })

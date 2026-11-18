@@ -17,7 +17,7 @@ namespace CheckPoint.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.21")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -101,6 +101,9 @@ namespace CheckPoint.Api.Migrations
                     b.Property<int>("UploadedByUserId")
                         .HasColumnType("int");
 
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CourseId");
@@ -112,6 +115,26 @@ namespace CheckPoint.Api.Migrations
                     b.HasIndex("UploadedByUserId");
 
                     b.ToTable("EducationalResources");
+                });
+
+            modelBuilder.Entity("CheckPoint.Api.Models.Favorite", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("UserId", "ResourceId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("Favorites");
                 });
 
             modelBuilder.Entity("CheckPoint.Api.Models.University", b =>
@@ -220,9 +243,33 @@ namespace CheckPoint.Api.Migrations
                     b.Navigation("UploadedByUser");
                 });
 
+            modelBuilder.Entity("CheckPoint.Api.Models.Favorite", b =>
+                {
+                    b.HasOne("CheckPoint.Api.Models.EducationalResource", "Resource")
+                        .WithMany("Favorites")
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CheckPoint.Api.Models.User", "User")
+                        .WithMany("Favorites")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CheckPoint.Api.Models.Course", b =>
                 {
                     b.Navigation("Resources");
+                });
+
+            modelBuilder.Entity("CheckPoint.Api.Models.EducationalResource", b =>
+                {
+                    b.Navigation("Favorites");
                 });
 
             modelBuilder.Entity("CheckPoint.Api.Models.University", b =>
@@ -234,6 +281,8 @@ namespace CheckPoint.Api.Migrations
 
             modelBuilder.Entity("CheckPoint.Api.Models.User", b =>
                 {
+                    b.Navigation("Favorites");
+
                     b.Navigation("UploadedResources");
                 });
 #pragma warning restore 612, 618

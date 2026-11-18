@@ -20,6 +20,7 @@ const routes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
+      { path: '/', element: <h1>Ana sayfa</h1> },
       { path: '/kaynaklar', element: <h1>Kaynaklar sayfası</h1> },
       { path: '/profil', element: <h1>Profil sayfası</h1> },
     ],
@@ -166,8 +167,8 @@ describe('RegisterPage', () => {
     const { router, user } = renderRoutes(routes, '/kayit')
     await fillForm(user)
 
-    expect(await screen.findByRole('heading', { name: 'Kaynaklar sayfası' })).toBeInTheDocument()
-    expect(currentLocation(router)).toBe('/kaynaklar')
+    expect(await screen.findByRole('heading', { name: 'Ana sayfa' })).toBeInTheDocument()
+    expect(currentLocation(router)).toBe('/')
     expect(calls).toEqual([
       'register:{"username":"yeni_ogrenci","email":"yeni@example.com","password":"Parola123"}',
       'login',

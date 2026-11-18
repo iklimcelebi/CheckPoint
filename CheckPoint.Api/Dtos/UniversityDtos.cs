@@ -12,8 +12,9 @@ public class UniversityRequest
 
     [Required(ErrorMessage = "Şehir zorunludur.")]
     [TrimmedStringLength(100, MinimumLength = 2, ErrorMessage = "Şehir 2 ile 100 karakter arasında olmalıdır.")]
+    [TurkishProvince]
     public string City { get; set; } = string.Empty;
 }
 
 /// <summary>Represents a university returned by the API.</summary>
-public record UniversityResponse(int Id, string Name, string City);
+public record UniversityResponse(int Id, string Name, string City, int ResourceCount);

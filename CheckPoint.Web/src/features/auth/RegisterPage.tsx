@@ -85,7 +85,7 @@ export function RegisterPage() {
 
       <p className="text-sm text-slate-600">
         Zaten hesabınız var mı?{' '}
-        <Link to="/giris" className="font-medium text-blue-700 hover:underline">
+        <Link to="/giris" className="font-medium text-accent hover:underline">
           Giriş yapın
         </Link>
       </p>

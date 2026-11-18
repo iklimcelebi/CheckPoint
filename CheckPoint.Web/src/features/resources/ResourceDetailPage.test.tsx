@@ -8,9 +8,15 @@ import { ResourceDetailPage } from './ResourceDetailPage'
 import { ResourceListPage } from './ResourceListPage'
 
 const resource = makeResource({ id: 10, uploadedBy: { id: 1, username: 'ayse' } })
+let viewRequests: number
 
 beforeEach(() => {
+  viewRequests = 0
   server.use(
+    http.post(api('/api/resources/10/view'), () => {
+      viewRequests++
+      return new HttpResponse(null, { status: 204 })
+    }),
     http.get(api('/api/resources/10'), () => HttpResponse.json(resource)),
     http.get(api('/api/universities'), () =>
       HttpResponse.json({ items: [], page: 1, pageSize: 100, totalCount: 0 }),
@@ -141,5 +147,23 @@ describe('ResourceDetailPage role-based actions', () => {
     )
     render()
     expect(await screen.findByRole('heading', { name: 'Kaynak bulunamadı' })).toBeInTheDocument()
+  })
+})
+
+describe('ResourceDetailPage view counting', () => {
+  it('records exactly one view even when the resource is refetched', async () => {
+    signInAs('User', 2, 'mehmet')
+    const { user } = render()
+    expect(await screen.findByRole('heading', { name: resource.title })).toBeInTheDocument()
+    await waitFor(() => expect(viewRequests).toBe(1))
+
+    server.use(
+      http.put(api('/api/resources/10/favorite'), () => new HttpResponse(null, { status: 204 })),
+    )
+    await user.click(screen.getByRole('button', { name: 'Favorilere ekle' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Favorilere ekle' })).toBeEnabled(),
+    )
+    expect(viewRequests).toBe(1)
   })
 })

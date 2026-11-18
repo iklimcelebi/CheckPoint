@@ -48,10 +48,10 @@ describe('formatting', () => {
 describe('safeReturnPath', () => {
   it.each([
     ['/kaynaklar/5', '/kaynaklar/5'],
-    ['//evil.example', '/kaynaklar'],
-    ['/\\evil.example', '/kaynaklar'],
-    ['https://evil.example', '/kaynaklar'],
-    [null, '/kaynaklar'],
+    ['//evil.example', '/'],
+    ['/\\evil.example', '/'],
+    ['https://evil.example', '/'],
+    [null, '/'],
   ])('maps %s to %s', (value, expected) => {
     expect(safeReturnPath(value)).toBe(expected)
   })

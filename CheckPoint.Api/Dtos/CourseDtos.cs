@@ -30,6 +30,16 @@ public sealed record CourseUpdateRequest
     public required string Code { get; init; }
 }
 
+/// <summary>A course ranked by how often its resources are viewed.</summary>
+public sealed record PopularCourseResponse(
+    int Id,
+    string Name,
+    string Code,
+    int UniversityId,
+    string UniversityName,
+    int ResourceCount,
+    int ViewCount);
+
 /// <summary>Course details returned by the API.</summary>
 public sealed record CourseResponse(
     int Id,

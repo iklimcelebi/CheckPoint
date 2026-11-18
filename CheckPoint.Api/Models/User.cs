@@ -9,4 +9,5 @@ public class User
     public string Role { get; set; } = "User";
     public DateTimeOffset CreatedAt { get; set; }
     public List<EducationalResource> UploadedResources { get; set; } = new();
+    public List<Favorite> Favorites { get; set; } = new();
 }

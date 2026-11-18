@@ -61,7 +61,9 @@ public sealed record ResourceResponse(
     string OriginalFileName,
     long FileSize,
     ResourceUploaderResponse UploadedBy,
-    DateTimeOffset UploadedAt);
+    DateTimeOffset UploadedAt,
+    int ViewCount,
+    bool IsFavorite);
 
 /// <summary>A page of results.</summary>
 public sealed record PagedResponse<T>(

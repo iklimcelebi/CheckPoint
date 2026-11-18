@@ -14,8 +14,10 @@ public class EducationalResource
     public long FileSize { get; set; }
     public int UploadedByUserId { get; set; }
     public DateTimeOffset UploadedAt { get; set; }
+    public int ViewCount { get; set; }
 
     public University? University { get; set; }
     public Course? Course { get; set; }
     public User? UploadedByUser { get; set; }
+    public List<Favorite> Favorites { get; set; } = new();
 }

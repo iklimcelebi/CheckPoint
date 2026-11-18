@@ -62,6 +62,47 @@ public class CoursesController : ControllerBase
             .ToPagedResponseAsync(page, pageSize, cancellationToken);
     }
 
+    [HttpGet("popular")]
+    [EndpointSummary("Popüler dersleri listeler")]
+    [EndpointDescription(
+        "En az bir kaynağı olan dersleri, kaynaklarının toplam görüntülenme sayısına, eşitlikte kaynak sayısına göre sıralar.")]
+    [ProducesResponseType(typeof(List<PopularCourseResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<PopularCourseResponse>>> Popular(
+        [FromQuery, Range(1, 20, ErrorMessage = "Gösterilecek ders sayısı 1 ile 20 arasında olmalıdır.")] int take = 6,
+        CancellationToken cancellationToken = default)
+    {
+        var courses = await _db.Courses
+            .AsNoTracking()
+            .Where(course => course.Resources.Any())
+            .Select(course => new
+            {
+                course.Id,
+                course.Name,
+                course.Code,
+                course.UniversityId,
+                UniversityName = course.University!.Name,
+                ResourceCount = course.Resources.Count,
+                ViewCount = course.Resources.Sum(resource => resource.ViewCount)
+            })
+            .OrderByDescending(course => course.ViewCount)
+            .ThenByDescending(course => course.ResourceCount)
+            .ThenBy(course => course.Name)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return courses
+            .Select(course => new PopularCourseResponse(
+                course.Id,
+                course.Name,
+                course.Code,
+                course.UniversityId,
+                course.UniversityName,
+                course.ResourceCount,
+                course.ViewCount))
+            .ToList();
+    }
+
     [HttpGet("{id:int}")]
     [EndpointSummary("Ders ayrıntısını getirir")]
     [ProducesResponseType(typeof(CourseResponse), StatusCodes.Status200OK)]
@@ -135,10 +176,12 @@ public class CoursesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [EndpointSummary("Dersi günceller")]
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Dersi günceller (Admin)")]
     [EndpointDescription("Sadece ad ve kod değişir; dersin üniversitesi değiştirilemez.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
@@ -164,6 +207,30 @@ public class CoursesController : ControllerBase
 
         course.Name = request.Name.Trim();
         course.Code = code;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
+    [EndpointSummary("Dersi siler (Admin)")]
+    [EndpointDescription("Kaynağı olan ders silinemez; bu durumda 409 döner.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var course = await _db.Courses.FindAsync([id], cancellationToken);
+        if (course is null)
+            return Problem(detail: "Ders bulunamadı.", statusCode: StatusCodes.Status404NotFound);
+
+        if (await _db.EducationalResources.AnyAsync(resource => resource.CourseId == id, cancellationToken))
+            return Problem(detail: "Bu derse bağlı kaynaklar olduğu için silinemez.",
+                statusCode: StatusCodes.Status409Conflict);
+
+        _db.Courses.Remove(course);
         await _db.SaveChangesAsync(cancellationToken);
 
         return NoContent();

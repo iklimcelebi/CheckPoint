@@ -1,6 +1,6 @@
 export const RETURN_PARAM = 'donus'
 
-export function safeReturnPath(value: string | null | undefined, fallback = '/kaynaklar'): string {
+export function safeReturnPath(value: string | null | undefined, fallback = '/'): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
     return fallback
   }

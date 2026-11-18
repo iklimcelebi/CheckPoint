@@ -75,7 +75,7 @@ export function LoginPage() {
 
       <p className="text-sm text-slate-600">
         Hesabınız yok mu?{' '}
-        <Link to={registerLink} className="font-medium text-blue-700 hover:underline">
+        <Link to={registerLink} className="font-medium text-accent hover:underline">
           Kayıt olun
         </Link>
       </p>

@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router'
 import { errorMessage } from '../../api/errors'
 import type { University } from '../../api/types'
 import { Page } from '../../components/Page'
@@ -10,9 +11,11 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { FormDialog } from '../../components/ui/FormDialog'
 import { Pagination } from '../../components/ui/Pagination'
+import { SelectField } from '../../components/ui/SelectField'
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StatusViews'
 import { TextField } from '../../components/ui/TextField'
 import { applyApiError } from '../../lib/forms'
+import { isTurkishProvince, TURKISH_PROVINCES } from '../../lib/provinces'
 import { useSearchState } from '../../lib/useSearchState'
 import { useAuth } from '../auth/authContext'
 import { createUniversity, deleteUniversity, fetchUniversities, updateUniversity } from './api'
@@ -98,7 +101,10 @@ export function UniversitiesPage() {
                     Üniversite
                   </th>
                   <th scope="col" className="px-4 py-3 font-medium">
-                    Şehir
+                    İl
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    Kaynak
                   </th>
                   {isAdmin && (
                     <th scope="col" className="px-4 py-3 text-right font-medium">
@@ -110,8 +116,17 @@ export function UniversitiesPage() {
               <tbody className="divide-y divide-slate-200">
                 {list.data.items.map((university) => (
                   <tr key={university.id}>
-                    <td className="px-4 py-3 font-medium text-slate-900">{university.name}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/kaynaklar?universite=${university.id}`}
+                        className="font-medium text-accent hover:underline"
+                        title="Bu üniversitenin kaynaklarını göster"
+                      >
+                        {university.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-slate-700">{university.city}</td>
+                    <td className="px-4 py-3 text-slate-700">{university.resourceCount}</td>
                     {isAdmin && (
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
@@ -202,7 +217,10 @@ function UniversityFormDialog({ editing, onClose, onSaved }: UniversityFormDialo
     resolver: zodResolver(universitySchema),
     defaultValues:
       editing.mode === 'edit'
-        ? { name: editing.university.name, city: editing.university.city }
+        ? {
+            name: editing.university.name,
+            city: isTurkishProvince(editing.university.city) ? editing.university.city : '',
+          }
         : { name: '', city: '' },
   })
 
@@ -238,7 +256,14 @@ function UniversityFormDialog({ editing, onClose, onSaved }: UniversityFormDialo
         error={errors.name?.message}
         {...register('name')}
       />
-      <TextField label="Şehir" maxLength={100} error={errors.city?.message} {...register('city')} />
+      <SelectField label="İl" error={errors.city?.message} {...register('city')}>
+        <option value="">İl seçin</option>
+        {TURKISH_PROVINCES.map((province) => (
+          <option key={province} value={province}>
+            {province}
+          </option>
+        ))}
+      </SelectField>
     </FormDialog>
   )
 }
