@@ -44,7 +44,7 @@ Bu belge, projeyi canlı olarak göstermek için adım adım bir akış ve olas�
 | 7:30 | Kaynaklar (yönetici) | Bir öğrencinin kaynağını açın | Yönetici başkasının kaynağında da Düzenle/Sil görür (moderasyon). |
 | 7:50 | Swagger | **Authorize yapmadan** `GET /api/universities` → Execute | **401** ve Türkçe ProblemDetails gövdesi. |
 | 8:10 | Swagger | `POST /api/auth/login` ile `ayse.demo@example.com` / `DemoParola1` → token'ı **Authorize**'a yapıştırın → `DELETE /api/resources/{id}`; id olarak mehmet_demo'nun kaynağının numarasını yazın (3:00'teki kaynak sayfasının adresindeki sayı, ör. `/kaynaklar/6`) | **403:** "Bu kaynağı silme yetkiniz yok." Yetki kontrolü yalnızca arayüzde değil, sunucuda da var. |
-| 8:40 | Terminal | (İsteğe bağlı) `CheckPoint.Web` içinde `npm test` | 62 frontend testi ~10 saniyede geçer. Backend'de 216, uçtan uca 4 test var. |
+| 8:40 | Terminal | (İsteğe bağlı) `CheckPoint.Web` içinde `npm test` | 68 frontend testi ~10 saniyede geçer. Backend'de 225, uçtan uca 5 test var. |
 | 9:15 | — | Kapanış | Bilinen sınırlamalar ve sonraki adımlar (README'nin son bölümü). |
 
 **İpucu:** Bir adım beklenmedik şekilde giderse (ör. 429 "Çok fazla deneme"), bu da bir özelliktir: giriş ve kayıt IP başına dakikada 10 istekle sınırlıdır. Bir dakika bekleyin.
@@ -78,9 +78,9 @@ Sayfa yenilenince oturumun korunması istendi; token yalnızca bellekte tutulsay
 
 **Nasıl test edildi?**
 Üç katman var:
-- **216 backend entegrasyon testi:** Her test kendi geçici veritabanını oluşturup siliyor.
-- **62 frontend bileşen testi:** Vitest, React Testing Library ve sahte API (MSW).
-- **4 uçtan uca test:** Playwright gerçek tarayıcıda gerçek API'ye karşı tüm akışı ve 403 senaryosunu çalıştırıyor.
+- **225 backend entegrasyon testi:** Her test kendi geçici veritabanını oluşturup siliyor.
+- **68 frontend bileşen testi:** Vitest, React Testing Library ve sahte API (MSW).
+- **5 uçtan uca test:** Playwright gerçek tarayıcıda gerçek API'ye karşı tüm akışı ve 403 senaryosunu çalıştırıyor.
 
 Ayrıca her aşamadan sonra test adımlarını elle uygulayıp doğruladım.
 

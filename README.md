@@ -23,7 +23,7 @@ Sunum için adım adım senaryo: [docs/DEMO.md](docs/DEMO.md)
 
 ## Özellikler
 
-- Kayıt, giriş, çıkış ve profil (JWT ile kimlik doğrulama, 60 dakikalık oturum).
+- Kayıt, giriş, çıkış, profil ve parola değiştirme (JWT ile kimlik doğrulama, 60 dakikalık oturum).
 - Kaynak listesi: üniversite, ders, tür ve metin filtresi; sayfalama; filtreler adres çubuğunda saklanır.
 - Kaynak ayrıntısı ve indirme (Türkçe dosya adları korunur).
 - Kaynak yükleme (ilerleme çubuğuyla), düzenleme (başlık, açıklama, tür) ve silme.
@@ -111,7 +111,7 @@ dotnet user-secrets set "SeedAdmin:Email" "admin@example.com" --project CheckPoi
 dotnet user-secrets set "SeedAdmin:Password" "<kendi-parolanız>" --project CheckPoint.Api
 ```
 
-Yönetici hesabı, uygulama ilk açıldığında veritabanında hiç Admin yoksa oluşturulur.
+Yönetici hesabı, uygulama ilk açıldığında veritabanında hiç Admin yoksa oluşturulur. Parolayı daha sonra değiştirmek için uygulamada **Profil → Parolayı değiştir** bölümünü kullanın; `SeedAdmin:Password` değerini sonradan değiştirmek mevcut hesabı etkilemez.
 
 ### 3. Derleyin ve veritabanını oluşturun
 
@@ -193,6 +193,7 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 | POST | `/api/auth/login` | Herkes | Giriş → `{ token, expiresAt, user }` | 400, 401, 429 |
 | GET | `/api/users/me` | Giriş yapmış | Kendi bilgileri | 401 |
 | GET | `/api/users/me/resources` | Giriş yapmış | Kendi yüklediği kaynaklar (sayfalı) | 400 |
+| PUT | `/api/users/me/password` | Giriş yapmış | Kendi parolasını değiştir (`{ currentPassword, newPassword }`) | 400 (mevcut parola hatalı / kural), 429 |
 | GET | `/api/universities?q=&page=&pageSize=` | Giriş yapmış | Üniversite listesi (sayfalı, arama) | 400 |
 | GET | `/api/universities/{id}` | Giriş yapmış | Üniversite ayrıntısı | 404 |
 | POST | `/api/universities` | **Admin** | Üniversite ekle | 400, 403, 409 |
@@ -236,9 +237,9 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 
 | Test | Komut (klasör) | Ne test eder | Sayı |
 |---|---|---|---|
-| Backend | `dotnet test CheckPoint.sln` (kök) | Tüm uç noktalar, yetkiler, doğrulama, dosya kuralları, hız sınırı, Türkçe arama, demo verisi | 216 |
-| Frontend birim/bileşen | `npm test` (`CheckPoint.Web`) | Formlar, korumalı rotalar, filtreler, yükleme doğrulamaları, rol bazlı düğmeler | 62 |
-| Uçtan uca | `npm run test:e2e` (`CheckPoint.Web`) | Gerçek API + tarayıcı: kayıt → giriş → üniversite → ders → yükleme → arama → indirme → düzenleme → silme; başkasının kaynağına 403; hata ekranları | 4 |
+| Backend | `dotnet test CheckPoint.sln` (kök) | Tüm uç noktalar, yetkiler, doğrulama, dosya kuralları, hız sınırı, Türkçe arama, parola değiştirme, demo verisi | 225 |
+| Frontend birim/bileşen | `npm test` (`CheckPoint.Web`) | Formlar, korumalı rotalar, filtreler, yükleme doğrulamaları, rol bazlı düğmeler, parola değiştirme | 68 |
+| Uçtan uca | `npm run test:e2e` (`CheckPoint.Web`) | Gerçek API + tarayıcı: kayıt → giriş → üniversite → ders → yükleme → arama → indirme → düzenleme → silme; başkasının kaynağına 403; hata ekranları; parola değiştirme | 5 |
 
 - Backend testleri ve uçtan uca testler kendi geçici LocalDB veritabanlarını oluşturur ve sonunda siler; `CheckPointDb`'ye dokunmaz.
 - Uçtan uca testler user-secrets gerektirmez (anahtar ve admin parolası her çalıştırmada rastgele üretilir). Çalıştığınız API (5118) açık olsa bile 5199 ve 5174 portlarını kullanır.
@@ -272,7 +273,7 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 | `npm install` "ENOENT package.json" | Komutu `CheckPoint.Web` klasöründe çalıştırın. Kök klasörde yanlışlıkla oluşan `package-lock.json` dosyasını silin. |
 | Giriş: "Çok fazla deneme yaptınız" (429) | Bir dakika bekleyin (IP başına dakikada 10 deneme). |
 | Demo hesaplarıyla giriş yapılamıyor | 4. adımda demo verisini açıp API'yi yeniden başlatın; konsolda `Demo data: ...` satırı görünmelidir. |
-| Admin hesabıyla giriş yapılamıyor | Admin yalnızca veritabanında hiç Admin yokken oluşturulur. user-secrets'taki parolayı sonradan değiştirdiyseniz veritabanındaki hesap eski parolayla kalır. |
+| Admin hesabıyla giriş yapılamıyor | Admin yalnızca veritabanında hiç Admin yokken oluşturulur. user-secrets'taki parolayı sonradan değiştirdiyseniz veritabanındaki hesap eski parolayla kalır; eski parolayla girip **Profil → Parolayı değiştir** bölümünden değiştirin. |
 | `npm run test:e2e`: "Executable doesn't exist" | `npx playwright install chromium` çalıştırın. |
 
 ## Bilinen sınırlamalar ve sonraki adımlar
@@ -280,7 +281,7 @@ Zorunlu ayarlardan biri eksik veya hatalıysa uygulama açılmaz ve eksiklerin h
 **Bu sürümde bilinçli olarak yer almayanlar:**
 
 - Yenileme token'ı (refresh token) yok; 60 dakika sonra yeniden giriş gerekir.
-- E-posta doğrulama ve parola sıfırlama yok.
+- E-posta doğrulama ve "parolamı unuttum" (e-postayla sıfırlama) yok; giriş yapmış kullanıcı parolasını profilinden değiştirebilir. Parola değişince açık oturumlar süreleri dolana kadar geçerli kalır.
 - Kullanıcıları listeleme, devre dışı bırakma veya silme için arayüz ve uç nokta yok.
 - Ders silme yok; dersi olan üniversite silinemez.
 - Dosya ve dersi değiştirmek için kaynağın silinip yeniden yüklenmesi gerekir.

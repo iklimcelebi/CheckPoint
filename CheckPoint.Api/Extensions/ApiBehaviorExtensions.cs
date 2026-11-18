@@ -72,18 +72,25 @@ public static class ApiBehaviorExtensions
                             : error.ErrorMessage)
                         .ToArray());
 
-            var problem = new ValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = ValidationTitle,
-                Instance = context.HttpContext.Request.Path
-            };
-            problem.Extensions["traceId"] = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
+            return ValidationProblemResult(context.HttpContext, errors);
+        };
+    }
 
-            return new BadRequestObjectResult(problem)
-            {
-                ContentTypes = { "application/problem+json" }
-            };
+    public static BadRequestObjectResult ValidationProblemResult(
+        HttpContext httpContext,
+        IDictionary<string, string[]> errors)
+    {
+        var problem = new ValidationProblemDetails(errors)
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = ValidationTitle,
+            Instance = httpContext.Request.Path
+        };
+        problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+
+        return new BadRequestObjectResult(problem)
+        {
+            ContentTypes = { "application/problem+json" }
         };
     }
 }

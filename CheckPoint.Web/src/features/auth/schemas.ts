@@ -10,6 +10,22 @@ const email = z
   .max(256, { error: 'E-posta adresi en fazla 256 karakter olabilir.' })
   .pipe(z.email({ error: 'Geçerli bir e-posta adresi girin.' }))
 
+function newPassword(requiredMessage: string) {
+  return z
+    .string()
+    .min(1, { error: requiredMessage })
+    .refine((value) => value.length >= 8 && value.length <= 64, {
+      error: 'Parola 8 ile 64 karakter arasında olmalıdır.',
+    })
+    .refine((value) => /\p{L}/u.test(value) && /\p{Nd}/u.test(value), {
+      error: 'Parola en az bir harf ve bir rakam içermelidir.',
+    })
+    .refine((value) => utf8.encode(value).length <= PASSWORD_MAX_BYTES, {
+      error:
+        'Parola çok uzun: ğ, ü, ş gibi Türkçe karakterler 2 bayt sayıldığından parola en fazla 72 bayt olabilir.',
+    })
+}
+
 export const loginSchema = z.object({
   email,
   password: z.string().min(1, { error: 'Parola zorunludur.' }),
@@ -29,19 +45,7 @@ export const registerSchema = z
         error: 'Kullanıcı adı 3 ile 50 karakter arasında olmalıdır.',
       }),
     email,
-    password: z
-      .string()
-      .min(1, { error: 'Parola zorunludur.' })
-      .refine((value) => value.length >= 8 && value.length <= 64, {
-        error: 'Parola 8 ile 64 karakter arasında olmalıdır.',
-      })
-      .refine((value) => /\p{L}/u.test(value) && /\p{Nd}/u.test(value), {
-        error: 'Parola en az bir harf ve bir rakam içermelidir.',
-      })
-      .refine((value) => utf8.encode(value).length <= PASSWORD_MAX_BYTES, {
-        error:
-          'Parola çok uzun: ğ, ü, ş gibi Türkçe karakterler 2 bayt sayıldığından parola en fazla 72 bayt olabilir.',
-      }),
+    password: newPassword('Parola zorunludur.'),
     confirmPassword: z.string().min(1, { error: 'Parolayı tekrar girin.' }),
   })
   .refine((value) => value.password === value.confirmPassword, {
@@ -50,3 +54,20 @@ export const registerSchema = z
   })
 
 export type RegisterForm = z.infer<typeof registerSchema>
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, { error: 'Mevcut parola zorunludur.' }),
+    newPassword: newPassword('Yeni parola zorunludur.'),
+    confirmPassword: z.string().min(1, { error: 'Yeni parolayı tekrar girin.' }),
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    path: ['confirmPassword'],
+    error: 'Parolalar eşleşmiyor.',
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    path: ['newPassword'],
+    error: 'Yeni parola mevcut paroladan farklı olmalıdır.',
+  })
+
+export type ChangePasswordForm = z.infer<typeof changePasswordSchema>
